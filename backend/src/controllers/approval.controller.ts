@@ -1,9 +1,7 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { asyncHandler, createError } from '../middleware/error.middleware';
-
-const prisma = new PrismaClient();
 
 // GET /api/approvals (Daftar Pengajuan untuk Persetujuan Pimpinan)
 export const getApprovalSubmissions = asyncHandler(async (req: AuthRequest, res: Response) => {

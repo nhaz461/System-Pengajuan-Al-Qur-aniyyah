@@ -1,11 +1,9 @@
 import { Response } from 'express';
 import path from 'path';
 import fs from 'fs';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { asyncHandler, createError } from '../middleware/error.middleware';
-
-const prisma = new PrismaClient();
 
 const getDbPath = () => {
   return path.resolve(__dirname, '../../../database/alquraniyyah.db');

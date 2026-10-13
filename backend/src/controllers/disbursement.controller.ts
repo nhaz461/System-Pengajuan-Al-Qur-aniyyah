@@ -1,11 +1,9 @@
 import { Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import path from 'path';
 import fs from 'fs';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { asyncHandler, createError } from '../middleware/error.middleware';
-
-const prisma = new PrismaClient();
 
 // GET /api/disbursements (Daftar Pengajuan untuk Pencairan)
 export const getDisbursementSubmissions = asyncHandler(async (req: AuthRequest, res: Response) => {

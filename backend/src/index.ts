@@ -50,7 +50,7 @@ if (process.env.NODE_ENV !== 'test') {
 app.use('/uploads', express.static(path.resolve(__dirname, '../../uploads')));
 
 // ─── Health Check ─────────────────────────────────────────────
-app.get('/api/health', (_req, res) => {
+app.get(['/', '/health', '/api/health'], (_req, res) => {
   res.json({
     status: 'OK',
     app: 'Sistem Administrasi Keuangan Yayasan Al-Qur\'aniyyah',
@@ -65,20 +65,20 @@ import disbursementRoutes from './routes/disbursement.routes';
 import lpjRoutes from './routes/lpj.routes';
 import backupRoutes from './routes/backup.routes';
 
-// ─── Routes ───────────────────────────────────────────────────
-app.use('/api/auth', authRoutes);
-app.use('/api/units', unitRoutes);
-app.use('/api/activities', activityRoutes);
-app.use('/api/fiscal-years', fiscalYearRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/ssh', sshRoutes);
-app.use('/api/submissions', submissionRoutes);
-app.use('/api/reviews', reviewRoutes);
-app.use('/api/approvals', approvalRoutes);
-app.use('/api/disbursements', disbursementRoutes);
-app.use('/api/lpj', lpjRoutes);
-app.use('/api/backups', backupRoutes);
+// ─── Routes (Dukung akses dengan atau tanpa prefix /api) ───────────
+app.use(['/api/auth', '/auth'], authRoutes);
+app.use(['/api/units', '/units'], unitRoutes);
+app.use(['/api/activities', '/activities'], activityRoutes);
+app.use(['/api/fiscal-years', '/fiscal-years'], fiscalYearRoutes);
+app.use(['/api/users', '/users'], userRoutes);
+app.use(['/api/dashboard', '/dashboard'], dashboardRoutes);
+app.use(['/api/ssh', '/ssh'], sshRoutes);
+app.use(['/api/submissions', '/submissions'], submissionRoutes);
+app.use(['/api/reviews', '/reviews'], reviewRoutes);
+app.use(['/api/approvals', '/approvals'], approvalRoutes);
+app.use(['/api/disbursements', '/disbursements'], disbursementRoutes);
+app.use(['/api/lpj', '/lpj'], lpjRoutes);
+app.use(['/api/backups', '/backups'], backupRoutes);
 
 // ─── 404 Handler ──────────────────────────────────────────────
 app.use((_req, res) => {
@@ -108,3 +108,7 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
 }
 
 export default app;
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = app;
+  module.exports.default = app;
+}
