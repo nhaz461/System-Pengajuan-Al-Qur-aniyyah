@@ -1,0 +1,114 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const cors_1 = __importDefault(require("cors"));
+const helmet_1 = __importDefault(require("helmet"));
+const morgan_1 = __importDefault(require("morgan"));
+const path_1 = __importDefault(require("path"));
+const dotenv_1 = require("dotenv");
+(0, dotenv_1.config)();
+if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = 'postgresql://postgres.fnfcjpyaqzpncbnlktdq:Janganlupa461@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres';
+}
+if (!process.env.DIRECT_URL) {
+    process.env.DIRECT_URL = process.env.DATABASE_URL;
+}
+if (!process.env.JWT_SECRET) {
+    process.env.JWT_SECRET = 'AlQuraniyyah_JWT_Secret_2026_YayasanPendidikanIslam';
+}
+const error_middleware_1 = require("./middleware/error.middleware");
+const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
+const units_routes_1 = __importDefault(require("./routes/units.routes"));
+const activities_routes_1 = __importDefault(require("./routes/activities.routes"));
+const fiscal_years_routes_1 = __importDefault(require("./routes/fiscal-years.routes"));
+const users_routes_1 = __importDefault(require("./routes/users.routes"));
+const dashboard_routes_1 = __importDefault(require("./routes/dashboard.routes"));
+const ssh_routes_1 = __importDefault(require("./routes/ssh.routes"));
+const submissions_routes_1 = __importDefault(require("./routes/submissions.routes"));
+const review_routes_1 = __importDefault(require("./routes/review.routes"));
+const app = (0, express_1.default)();
+const PORT = parseInt(process.env.PORT || '5000', 10);
+// ─── Security Middleware ──────────────────────────────────────
+app.use((0, helmet_1.default)({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+// ─── CORS - Izinkan akses dari LAN ────────────────────────────
+app.use((0, cors_1.default)({
+    origin: (origin, callback) => {
+        // Izinkan semua origin (localhost dan LAN)
+        callback(null, true);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+// ─── Body Parser ──────────────────────────────────────────────
+app.use(express_1.default.json({ limit: '10mb' }));
+app.use(express_1.default.urlencoded({ extended: true, limit: '10mb' }));
+// ─── Logger ───────────────────────────────────────────────────
+if (process.env.NODE_ENV !== 'test') {
+    app.use((0, morgan_1.default)('dev'));
+}
+// ─── Static Files ─────────────────────────────────────────────
+app.use('/uploads', express_1.default.static(path_1.default.resolve(__dirname, '../../uploads')));
+// ─── Health Check ─────────────────────────────────────────────
+app.get(['/', '/health', '/api/health'], (_req, res) => {
+    res.json({
+        status: 'OK',
+        app: 'Sistem Administrasi Keuangan Yayasan Al-Qur\'aniyyah',
+        version: '1.0.0',
+        timestamp: new Date().toISOString(),
+        phase: 'PHASE 4',
+    });
+});
+const approval_routes_1 = __importDefault(require("./routes/approval.routes"));
+const disbursement_routes_1 = __importDefault(require("./routes/disbursement.routes"));
+const lpj_routes_1 = __importDefault(require("./routes/lpj.routes"));
+const backup_routes_1 = __importDefault(require("./routes/backup.routes"));
+// ─── Routes (Dukung akses dengan atau tanpa prefix /api) ───────────
+app.use(['/api/auth', '/auth'], auth_routes_1.default);
+app.use(['/api/units', '/units'], units_routes_1.default);
+app.use(['/api/activities', '/activities'], activities_routes_1.default);
+app.use(['/api/fiscal-years', '/fiscal-years'], fiscal_years_routes_1.default);
+app.use(['/api/users', '/users'], users_routes_1.default);
+app.use(['/api/dashboard', '/dashboard'], dashboard_routes_1.default);
+app.use(['/api/ssh', '/ssh'], ssh_routes_1.default);
+app.use(['/api/submissions', '/submissions'], submissions_routes_1.default);
+app.use(['/api/reviews', '/reviews'], review_routes_1.default);
+app.use(['/api/approvals', '/approvals'], approval_routes_1.default);
+app.use(['/api/disbursements', '/disbursements'], disbursement_routes_1.default);
+app.use(['/api/lpj', '/lpj'], lpj_routes_1.default);
+app.use(['/api/backups', '/backups'], backup_routes_1.default);
+// ─── 404 Handler ──────────────────────────────────────────────
+app.use((_req, res) => {
+    res.status(404).json({
+        success: false,
+        message: 'Endpoint tidak ditemukan.',
+    });
+});
+// ─── Error Handler ────────────────────────────────────────────
+app.use(error_middleware_1.errorHandler);
+// ─── Start Server ─────────────────────────────────────────────
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log('\n╔════════════════════════════════════════════════════╗');
+        console.log('║   Sistem Administrasi Keuangan                     ║');
+        console.log('║   Yayasan Pendidikan Islam Al-Qur\'aniyyah          ║');
+        console.log('║   Version 1.0.0 - Phase 4                          ║');
+        console.log('╚════════════════════════════════════════════════════╝');
+        console.log(`\n🚀 Server berjalan:`);
+        console.log(`   Local:    http://localhost:${PORT}`);
+        console.log(`   LAN:      http://<IP-SERVER>:${PORT}`);
+        console.log(`   API:      http://localhost:${PORT}/api`);
+        console.log(`   Health:   http://localhost:${PORT}/api/health\n`);
+    });
+}
+exports.default = app;
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = app;
+    module.exports.default = app;
+}
+//# sourceMappingURL=index.js.map
