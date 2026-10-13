@@ -19,6 +19,7 @@ if (!process.env.DIRECT_URL) {
 if (!process.env.JWT_SECRET) {
     process.env.JWT_SECRET = 'AlQuraniyyah_JWT_Secret_2026_YayasanPendidikanIslam';
 }
+const prisma_1 = __importDefault(require("./lib/prisma"));
 const error_middleware_1 = require("./middleware/error.middleware");
 const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
 const units_routes_1 = __importDefault(require("./routes/units.routes"));
@@ -54,14 +55,37 @@ if (process.env.NODE_ENV !== 'test') {
 }
 // ─── Static Files ─────────────────────────────────────────────
 app.use('/uploads', express_1.default.static(path_1.default.resolve(__dirname, '../../uploads')));
-// ─── Health Check ─────────────────────────────────────────────
-app.get(['/', '/health', '/api/health'], (_req, res) => {
-    res.json({
-        status: 'OK',
+// ─── Health Check & Live Diagnostics ────────────────────────
+app.get(['/', '/health', '/api/health', '/api/system/diagnostics'], async (_req, res) => {
+    let dbStatus = 'disconnected';
+    let userCount = 0;
+    let dbLatencyMs = 0;
+    const startTime = Date.now();
+    try {
+        userCount = await prisma_1.default.user.count();
+        dbStatus = 'connected';
+        dbLatencyMs = Date.now() - startTime;
+    }
+    catch (error) {
+        dbStatus = 'error: ' + (error.message ? error.message.slice(0, 80) : 'connection failed');
+    }
+    const isHealthy = dbStatus === 'connected';
+    res.status(isHealthy ? 200 : 503).json({
+        status: isHealthy ? 'OK' : 'DEGRADED',
         app: 'Sistem Administrasi Keuangan Yayasan Al-Qur\'aniyyah',
         version: '1.0.0',
         timestamp: new Date().toISOString(),
         phase: 'PHASE 4',
+        diagnostics: {
+            backend: 'online',
+            database: dbStatus === 'connected' ? 'connected' : 'error',
+            databaseLatency: `${dbLatencyMs}ms`,
+            authService: dbStatus === 'connected' ? 'ready' : 'unavailable',
+            totalUsersConfigured: userCount,
+            environment: process.env.NODE_ENV || 'production',
+            platform: process.env.VERCEL ? 'Vercel Serverless' : 'Node.js Standalone',
+            lastChecked: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
+        },
     });
 });
 const approval_routes_1 = __importDefault(require("./routes/approval.routes"));

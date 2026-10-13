@@ -160,7 +160,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen min-h-[100dvh] max-h-[100dvh] bg-gray-50 overflow-hidden">
       {/* ── Desktop Sidebar (fixed, tidak collapse konten) ── */}
       <aside className="hidden lg:flex lg:flex-shrink-0 w-60 flex-col">
         <div className="h-full overflow-y-auto">
@@ -222,9 +222,9 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
         </header>
 
-        {/* Page Content - SCROLLABLE */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden">
-          <div className="p-4 sm:p-6 min-h-full">
+        {/* Page Content - SCROLLABLE & RESPONSIVE */}
+        <main className="flex-1 overflow-y-auto overflow-x-auto min-h-0 focus:outline-none">
+          <div className="p-4 sm:p-6 min-h-full pb-24 sm:pb-12 max-w-full">
             {children}
           </div>
         </main>

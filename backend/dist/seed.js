@@ -15,6 +15,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const dotenv_1 = require("dotenv");
+(0, dotenv_1.config)();
+if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = 'postgresql://postgres.fnfcjpyaqzpncbnlktdq:Janganlupa461@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres';
+}
+if (!process.env.DIRECT_URL) {
+    process.env.DIRECT_URL = process.env.DATABASE_URL;
+}
 const prisma = new client_1.PrismaClient();
 async function main() {
     console.log('🌱 Memulai seed database...\n');

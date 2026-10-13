@@ -17,6 +17,7 @@ if (!process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'AlQuraniyyah_JWT_Secret_2026_YayasanPendidikanIslam';
 }
 
+import prisma from './lib/prisma';
 import { errorHandler } from './middleware/error.middleware';
 import authRoutes from './routes/auth.routes';
 import unitRoutes from './routes/units.routes';
@@ -59,14 +60,39 @@ if (process.env.NODE_ENV !== 'test') {
 // ─── Static Files ─────────────────────────────────────────────
 app.use('/uploads', express.static(path.resolve(__dirname, '../../uploads')));
 
-// ─── Health Check ─────────────────────────────────────────────
-app.get(['/', '/health', '/api/health'], (_req, res) => {
-  res.json({
-    status: 'OK',
+// ─── Health Check & Live Diagnostics ────────────────────────
+app.get(['/', '/health', '/api/health', '/api/system/diagnostics'], async (_req, res) => {
+  let dbStatus = 'disconnected';
+  let userCount = 0;
+  let dbLatencyMs = 0;
+  const startTime = Date.now();
+
+  try {
+    userCount = await prisma.user.count();
+    dbStatus = 'connected';
+    dbLatencyMs = Date.now() - startTime;
+  } catch (error: any) {
+    dbStatus = 'error: ' + (error.message ? error.message.slice(0, 80) : 'connection failed');
+  }
+
+  const isHealthy = dbStatus === 'connected';
+
+  res.status(isHealthy ? 200 : 503).json({
+    status: isHealthy ? 'OK' : 'DEGRADED',
     app: 'Sistem Administrasi Keuangan Yayasan Al-Qur\'aniyyah',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
     phase: 'PHASE 4',
+    diagnostics: {
+      backend: 'online',
+      database: dbStatus === 'connected' ? 'connected' : 'error',
+      databaseLatency: `${dbLatencyMs}ms`,
+      authService: dbStatus === 'connected' ? 'ready' : 'unavailable',
+      totalUsersConfigured: userCount,
+      environment: process.env.NODE_ENV || 'production',
+      platform: process.env.VERCEL ? 'Vercel Serverless' : 'Node.js Standalone',
+      lastChecked: new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }),
+    },
   });
 });
 

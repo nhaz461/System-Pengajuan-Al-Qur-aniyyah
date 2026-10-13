@@ -59,6 +59,9 @@ export const BackupPage: React.FC = () => (
   <PlaceholderPage title="Backup & Restore" description="Backup dan restore database" phase="Phase 9" />
 );
 
+import SystemDiagnosticsPage from './SystemDiagnosticsPage';
+
 export const PengaturanPage: React.FC = () => (
-  <PlaceholderPage title="Pengaturan" description="Pengaturan aplikasi dan akun" phase="Phase 9" />
+  <SystemDiagnosticsPage />
 );
+
