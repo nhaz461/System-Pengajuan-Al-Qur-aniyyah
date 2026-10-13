@@ -1,0 +1,321 @@
+// Prisma Schema - Sistem Administrasi Keuangan Yayasan Al-Qur'aniyyah v1.0
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ROLES & USERS
+// ============================================================
+
+model Role {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique // ADMIN, UNIT, KEUANGAN, PIMPINAN
+  createdAt DateTime @default(now()) @map("created_at")
+  users     User[]
+
+  @@map("roles")
+}
+
+model User {
+  id           Int       @id @default(autoincrement())
+  name         String
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  roleId       Int       @map("role_id")
+  unitId       Int?      @map("unit_id")
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  role         Role      @relation(fields: [roleId], references: [id])
+  unit         Unit?     @relation(fields: [unitId], references: [id])
+  auditLogs            AuditLog[]
+  sshVersions          SshVersion[]
+  submissions          Submission[]         @relation("SubmissionSubmitter")
+  approvedSubmissions  Submission[]         @relation("SubmissionApprover")
+  disbursedSubmissions Submission[]         @relation("SubmissionDisburser")
+  submissionReviews    SubmissionReview[]
+  disbursements        Disbursement[]
+
+  @@map("users")
+}
+
+// ============================================================
+// MASTER DATA
+// ============================================================
+
+model Unit {
+  id          Int          @id @default(autoincrement())
+  name        String
+  code        String       @unique
+  description String?
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  users       User[]
+  submissions Submission[]
+
+  @@map("units")
+}
+
+model Activity {
+  id          Int          @id @default(autoincrement())
+  name        String
+  description String?
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  submissions Submission[]
+
+  @@map("activities")
+}
+
+model FiscalYear {
+  id          Int          @id @default(autoincrement())
+  year        Int          @unique
+  isActive    Boolean      @default(false) @map("is_active")
+  notes       String?
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  submissions Submission[]
+
+  @@map("fiscal_years")
+}
+
+// ============================================================
+// AUDIT LOG
+// ============================================================
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?     @map("user_id")
+  action    String
+  entity    String
+  entityId  Int?     @map("entity_id")
+  oldValue  String?  @map("old_value")
+  newValue  String?  @map("new_value")
+  note      String?
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ============================================================
+// MASTER SSH 2026
+// ============================================================
+
+model SshVersion {
+  id           Int       @id @default(autoincrement())
+  version      String    // e.g. "v1.0", "v1.1", etc.
+  filename     String    @map("filename") // Sumber File
+  totalItems   Int       @default(0) @map("total_items")
+  isActive     Boolean   @default(true) @map("is_active")
+  importedById Int       @map("imported_by_id")
+  importedAt   DateTime  @default(now()) @map("imported_at")
+  notes        String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  importedBy   User      @relation(fields: [importedById], references: [id])
+  items        SshItem[]
+
+  @@map("ssh_versions")
+}
+
+model SshItem {
+  id           Int        @id @default(autoincrement())
+  sshVersionId Int        @map("ssh_version_id")
+  kode         String?    // Jika kode tidak tersedia dari dokumen, tetap null (jangan buat kode palsu)
+  kategori     String
+  uraian       String
+  satuan       String
+  hargaSsh     Float      @map("harga_ssh")
+  status       String     @default("AKTIF")
+  keterangan   String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  sshVersion      SshVersion       @relation(fields: [sshVersionId], references: [id], onDelete: Cascade)
+  submissionItems SubmissionItem[]
+
+  @@index([sshVersionId])
+  @@index([uraian])
+  @@index([kode])
+  @@map("ssh_items")
+}
+
+// ============================================================
+// PENGAJUAN ANGGARAN UNIT
+// ============================================================
+
+model Submission {
+  id               Int       @id @default(autoincrement())
+  submissionNumber String    @unique @map("submission_number") // No Pengajuan e.g. PENG/2026/0001
+  unitId           Int       @map("unit_id")
+  activityId       Int       @map("activity_id")
+  fiscalYearId     Int       @map("fiscal_year_id")
+  title            String    // Judul / Perihal Belanja Kegiatan
+  originalFilename String    @map("original_filename")
+  filePath         String?   @map("file_path")
+  totalExcel       Float     @map("total_excel")   // Total yang tertera di dokumen Excel
+  totalParsing     Float     @map("total_parsing") // Total kalkulasi dari item transaksi
+  selisih          Float     @default(0)           // Selisih Total Excel vs Parsing
+  totalReviewed    Float?    @map("total_reviewed")
+  totalApproved    Float?    @map("total_approved")
+  totalDisbursed   Float?    @map("total_disbursed")
+  totalRealized    Float?    @map("total_realized")
+  
+  // Status Workflow: DRAFT, MENUNGGU_REVIEW, DALAM_REVIEW, PERLU_REVISI, REVIEW_SELESAI, MENUNGGU_APPROVAL, DISETUJUI, DITOLAK, MENUNGGU_PENCAIRAN, DICAIRKAN, SELESAI
+  status           String    @default("MENUNGGU_REVIEW")
+  submittedById    Int       @map("submitted_by_id")
+  submittedAt      DateTime  @default(now()) @map("submitted_at")
+  activityDate     DateTime? @map("activity_date") // Tanggal Pelaksanaan Kegiatan
+  notes            String?
+
+  // Persetujuan Pimpinan (Phase 5)
+  approvedById     Int?      @map("approved_by_id")
+  approvedAt       DateTime? @map("approved_at")
+  approvalNotes    String?   @map("approval_notes")
+
+  // Pencairan Keuangan (Phase 6)
+  disbursedById    Int?      @map("disbursed_by_id")
+  disbursedAt      DateTime? @map("disbursed_at")
+  disbursementNotes String?  @map("disbursement_notes")
+
+  // LPJ Realisasi (Phase 7)
+  lpjSubmittedAt   DateTime? @map("lpj_submitted_at")
+  lpjNotes         String?   @map("lpj_notes")
+  lpjStatus        String?   @map("lpj_status") // MENUNGGU_VERIFIKASI, DITERIMA, PERLU_REVISI
+
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  unit             Unit      @relation(fields: [unitId], references: [id])
+  activity         Activity  @relation(fields: [activityId], references: [id])
+  fiscalYear       FiscalYear @relation(fields: [fiscalYearId], references: [id])
+  submittedBy      User      @relation("SubmissionSubmitter", fields: [submittedById], references: [id])
+  approvedBy       User?     @relation("SubmissionApprover", fields: [approvedById], references: [id])
+  disbursedBy      User?     @relation("SubmissionDisburser", fields: [disbursedById], references: [id])
+
+  items            SubmissionItem[]
+  reviews          SubmissionReview[]
+  disbursements    Disbursement[]
+  lpjItems         LpjItem[]
+
+  @@map("submissions")
+}
+
+model SubmissionItem {
+  id            Int        @id @default(autoincrement())
+  submissionId  Int        @map("submission_id")
+  itemNumber    Int        @map("item_number") // Urutan baris (No)
+  kategori      String     // Kategori belanja (ATK, Konsumsi, Honorarium, dll)
+  uraian        String     // Uraian Barang / Belanja Kegiatan
+  hargaSatuan   Float      @map("harga_satuan") // Harga Satuan dari Excel
+  volume        Float      // Volume
+  satuan        String     // Satuan (Rim, Botol, Kotak, dll)
+  jumlah        Float      // Jumlah = Volume * HargaSatuan
+  keterangan    String?    // Keterangan dari Excel
+
+  // Integritas Data Harga (Section M & Z):
+  // JANGAN pernah kehilangan data asli (originalPrice).
+  originalPrice Float      @map("original_price")
+  reviewPrice   Float?     @map("review_price")   // Harga hasil review reviewer keuangan (Phase 4)
+  sshPrice      Float?     @map("ssh_price")      // Harga standar acuan dari Master SSH 2026 (Phase 4)
+  sshStatus     String?    @default("BELUM_REVIEW") @map("ssh_status") // SESUAI_SSH, MELEBIHI_SSH, PERLU_CEK, TIDAK_DITEMUKAN_DI_SSH
+  sshItemId     Int?       @map("ssh_item_id")
+  reviewNote    String?    @map("review_note")
+
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  submission    Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  sshItem       SshItem?   @relation(fields: [sshItemId], references: [id])
+  lpjItems      LpjItem[]
+
+  @@index([submissionId])
+  @@index([uraian])
+  @@map("submission_items")
+}
+
+model SubmissionReview {
+  id           Int        @id @default(autoincrement())
+  submissionId Int        @map("submission_id")
+  reviewerId   Int        @map("reviewer_id")
+  action       String     // REVIEW_START, UPDATE_ITEM, SAVE_DRAFT, APPROVE_TO_LEADERSHIP, REQUEST_REVISION
+  notes        String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  reviewer     User       @relation(fields: [reviewerId], references: [id])
+
+  @@index([submissionId])
+  @@map("submission_reviews")
+}
+
+// ============================================================
+// PENCAIRAN ANGGARAN (Phase 6)
+// ============================================================
+
+model Disbursement {
+  id              Int        @id @default(autoincrement())
+  submissionId    Int        @map("submission_id")
+  amount          Float
+  paymentMethod   String     @map("payment_method") // TRANSFER / TUNAI
+  bankName        String?    @map("bank_name")
+  accountNumber   String?    @map("account_number")
+  recipientName   String     @map("recipient_name")
+  referenceNumber String?    @map("reference_number")
+  receiptFile     String?    @map("receipt_file")
+  notes           String?
+  disbursedById   Int        @map("disbursed_by_id")
+  disbursedAt     DateTime   @default(now()) @map("disbursed_at")
+  createdAt       DateTime   @default(now()) @map("created_at")
+
+  submission      Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  disbursedBy     User       @relation(fields: [disbursedById], references: [id])
+
+  @@index([submissionId])
+  @@map("disbursements")
+}
+
+// ============================================================
+// REALISASI & LPJ (Phase 7)
+// ============================================================
+
+model LpjItem {
+  id               Int             @id @default(autoincrement())
+  submissionId     Int             @map("submission_id")
+  submissionItemId Int?            @map("submission_item_id")
+  uraian           String
+  volume           Float
+  satuan           String
+  hargaSatuan      Float           @map("harga_satuan")
+  total            Float
+  notaNumber       String?         @map("nota_number")
+  notaDate         DateTime?       @map("nota_date")
+  notaFile         String?         @map("nota_file")
+  keterangan       String?
+  createdAt        DateTime        @default(now()) @map("created_at")
+
+  submission       Submission      @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  submissionItem   SubmissionItem? @relation(fields: [submissionItemId], references: [id])
+
+  @@index([submissionId])
+  @@map("lpj_items")
+}
+
+
+

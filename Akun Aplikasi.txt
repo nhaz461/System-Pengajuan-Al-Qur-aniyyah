@@ -1,0 +1,11 @@
+Akun Login untuk Menguji Setiap Peran
+
+Anda dapat langsung mencoba login menggunakan akun resmi berikut:
+
+Peran (Role)	Email Login	Kata Sandi	Halaman Utama / Fitur
+Ketua Yayasan / Pimpinan	pimpinan@alquraniyyah.sch.id	Pimpinan@2026	Menu Persetujuan (Disposisi pengajuan & cetak lembar pengesahan)
+Bendahara Keuangan	keuangan@alquraniyyah.sch.id	Keuangan@2026	Menu Review Keuangan, Pencairan, & Verifikasi LPJ
+Operator Unit (SMP IT)	smpit@alquraniyyah.sch.id	Unit@2026	Menu Pengajuan (Unggah Excel belanja) & Realisasi/LPJ
+Administrator Sistem	admin@alquraniyyah.sch.id	Admin@2026	Seluruh menu + Master Data, Master SSH, Backup & Audit Log
+
+Silakan buka browser di tautan di atas untuk langsung menggunakannya.
