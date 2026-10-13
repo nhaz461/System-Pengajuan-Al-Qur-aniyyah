@@ -17,6 +17,8 @@ database/*.db-journal
 */.env
 .env.local
 .env.*.local
+*.backup
+*/*.backup
 
 # Logs
 *.log

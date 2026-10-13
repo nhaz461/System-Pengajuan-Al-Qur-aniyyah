@@ -91,18 +91,20 @@ app.use((_req, res) => {
 // ─── Error Handler ────────────────────────────────────────────
 app.use(errorHandler);
 
-// ─── Start Server (bind ke 0.0.0.0 untuk akses LAN) ──────────
-app.listen(PORT, '0.0.0.0', () => {
-  console.log('\n╔════════════════════════════════════════════════════╗');
-  console.log('║   Sistem Administrasi Keuangan                     ║');
-  console.log('║   Yayasan Pendidikan Islam Al-Qur\'aniyyah          ║');
-  console.log('║   Version 1.0.0 - Phase 4                          ║');
-  console.log('╚════════════════════════════════════════════════════╝');
-  console.log(`\n🚀 Server berjalan:`);
-  console.log(`   Local:    http://localhost:${PORT}`);
-  console.log(`   LAN:      http://<IP-SERVER>:${PORT}`);
-  console.log(`   API:      http://localhost:${PORT}/api`);
-  console.log(`   Health:   http://localhost:${PORT}/api/health\n`);
-});
+// ─── Start Server (hanya saat standalone, bukan saat di Vercel serverless) ──────────
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log('\n╔════════════════════════════════════════════════════╗');
+    console.log('║   Sistem Administrasi Keuangan                     ║');
+    console.log('║   Yayasan Pendidikan Islam Al-Qur\'aniyyah          ║');
+    console.log('║   Version 1.0.0 - Phase 4                          ║');
+    console.log('╚════════════════════════════════════════════════════╝');
+    console.log(`\n🚀 Server berjalan:`);
+    console.log(`   Local:    http://localhost:${PORT}`);
+    console.log(`   LAN:      http://<IP-SERVER>:${PORT}`);
+    console.log(`   API:      http://localhost:${PORT}/api`);
+    console.log(`   Health:   http://localhost:${PORT}/api/health\n`);
+  });
+}
 
 export default app;
