@@ -101,8 +101,8 @@ app.use((_req, res) => {
 // ─── Error Handler ────────────────────────────────────────────
 app.use(errorHandler);
 
-// ─── Start Server (hanya saat standalone, bukan saat di Vercel serverless) ──────────
-if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+// ─── Start Server ─────────────────────────────────────────────
+if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, '0.0.0.0', () => {
     console.log('\n╔════════════════════════════════════════════════════╗');
     console.log('║   Sistem Administrasi Keuangan                     ║');
