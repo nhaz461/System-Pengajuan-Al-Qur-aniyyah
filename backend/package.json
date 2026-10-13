@@ -2,7 +2,7 @@
   "name": "alquraniyyah-backend",
   "version": "1.0.0",
   "description": "Backend - Sistem Administrasi Keuangan Yayasan Al-Qur'aniyyah",
-  "main": "dist/index.js",
+  "main": "index.js",
   "scripts": {
     "dev": "node node_modules/ts-node-dev/lib/bin.js --respawn --transpile-only src/index.ts",
     "build": "node node_modules/typescript/bin/tsc",

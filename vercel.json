@@ -3,7 +3,8 @@
   "services": {
     "backend": {
       "root": "backend",
-      "entrypoint": "src/index.ts"
+      "framework": "express",
+      "entrypoint": "index.js"
     },
     "frontend": {
       "root": "frontend",
@@ -18,6 +19,10 @@
     {
       "source": "/uploads/(.*)",
       "destination": { "service": "backend" }
+    },
+    {
+      "source": "/((?!api|uploads|assets|favicon\\.ico|logo\\.png).*)",
+      "destination": { "service": "frontend", "path": "/index.html" }
     },
     {
       "source": "/(.*)",
