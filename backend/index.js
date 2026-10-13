@@ -1,4 +1,4 @@
-// Entrypoint for backend service
+// Entrypoint for backend service on Vercel
 const path = require('path');
 
 if (!process.env.DATABASE_URL) {
@@ -12,18 +12,28 @@ if (!process.env.JWT_SECRET) {
 }
 
 let app;
+let initError = null;
+
 try {
-  // Use self-contained bundle with express & all dependencies inlined
   const appModule = require('./dist/bundle.js');
   app = appModule.default || appModule;
-} catch (bundleErr) {
-  try {
-    const appModule = require('./dist/index.js');
-    app = appModule.default || appModule;
-  } catch (distErr) {
-    console.error('[backend/index.js] Error initializing backend:', bundleErr, distErr);
-    throw distErr;
-  }
+} catch (err) {
+  initError = err;
+  console.error('[backend/index.js] Init error:', err);
 }
 
-module.exports = app;
+module.exports = (req, res) => {
+  if (initError) {
+    res.statusCode = 500;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({
+      success: false,
+      message: 'Backend initialization error on Vercel',
+      error: initError.message,
+      stack: initError.stack,
+    }, null, 2));
+    return;
+  }
+
+  return app(req, res);
+};
