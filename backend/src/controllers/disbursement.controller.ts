@@ -381,6 +381,12 @@ export const getSppdData = asyncHandler(async (req: AuthRequest, res: Response) 
   // Tanggal Pelaksanaan dari pengajuan
   const execDate = sub.activityDate || sub.submittedAt;
 
+  // Nama agenda / kegiatan spesifik
+  const specificAgenda =
+    sub.title?.replace(/^Pengajuan\s+(Anggaran\s+)?/i, '').trim() ||
+    sub.title ||
+    sub.activity.name;
+
   // Tanggal Pencairan: Ditentukan setelah pimpinan menyetujui / bendahara mencairkan
   let disburseDateStr: string | null = null;
   if (disburse?.disbursedAt) {

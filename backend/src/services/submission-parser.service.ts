@@ -89,7 +89,7 @@ export async function parseSubmissionExcel(
     buf = sanitizeXlsxBuffer(filePathOrBuffer);
   }
 
-  await workbook.xlsx.load(buf);
+  await workbook.xlsx.load(buf as any);
 
   // 1. Identifikasi sheet: cari sheet yang memuat rencana anggaran atau sheet pertama
   let activeSheet: ExcelJS.Worksheet | undefined;

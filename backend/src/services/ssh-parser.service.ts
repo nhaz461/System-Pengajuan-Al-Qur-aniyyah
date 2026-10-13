@@ -70,7 +70,7 @@ export async function parseSshExcel(filePathOrBuffer: string | Buffer): Promise<
     buf = sanitizeXlsxBuffer(filePathOrBuffer);
   }
 
-  await workbook.xlsx.load(buf);
+  await workbook.xlsx.load(buf as any);
 
   // 1. Cari sheet "SSH 2026"
   let targetSheet: ExcelJS.Worksheet | undefined;
