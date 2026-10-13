@@ -13,19 +13,17 @@ if (!process.env.JWT_SECRET) {
 
 let app;
 try {
-  const appModule = require('./dist/index.js');
+  // Use self-contained bundle with express & all dependencies inlined
+  const appModule = require('./dist/bundle.js');
   app = appModule.default || appModule;
-} catch (loadErr) {
-  console.error('[backend/index.js] Error loading dist/index.js:', loadErr);
-  const express = require('express');
-  app = express();
-  app.all('*', (req, res) => {
-    res.status(500).json({
-      success: false,
-      message: 'Gagal menginisialisasi backend service',
-      error: loadErr.message,
-    });
-  });
+} catch (bundleErr) {
+  try {
+    const appModule = require('./dist/index.js');
+    app = appModule.default || appModule;
+  } catch (distErr) {
+    console.error('[backend/index.js] Error initializing backend:', bundleErr, distErr);
+    throw distErr;
+  }
 }
 
 module.exports = app;

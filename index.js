@@ -1,4 +1,4 @@
-// Entrypoint for Root Vercel Serverless Function
+// Entrypoint for Root Vercel Function
 const path = require('path');
 
 if (!process.env.DATABASE_URL) {
@@ -13,19 +13,16 @@ if (!process.env.JWT_SECRET) {
 
 let app;
 try {
-  const appModule = require('./backend/dist/index.js');
+  const appModule = require('./backend/dist/bundle.js');
   app = appModule.default || appModule;
-} catch (loadErr) {
-  console.error('[Root index.js] Error loading backend/dist/index.js:', loadErr);
-  const express = require('express');
-  app = express();
-  app.all('*', (req, res) => {
-    res.status(500).json({
-      success: false,
-      message: 'Gagal menginisialisasi backend serverless pada root',
-      error: loadErr.message,
-    });
-  });
+} catch (bundleErr) {
+  try {
+    const appModule = require('./backend/dist/index.js');
+    app = appModule.default || appModule;
+  } catch (distErr) {
+    console.error('[index.js] Error initializing:', bundleErr, distErr);
+    throw distErr;
+  }
 }
 
 module.exports = app;
