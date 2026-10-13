@@ -11,7 +11,7 @@ if (!process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'AlQuraniyyah_JWT_Secret_2026_YayasanPendidikanIslam';
 }
 
-const appModule = require('../backend/dist/bundle.js');
+const appModule = require('../backend/dist/index.js');
 const app = appModule.default || appModule;
 
 module.exports = app;
