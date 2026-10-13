@@ -11,18 +11,7 @@ if (!process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'AlQuraniyyah_JWT_Secret_2026_YayasanPendidikanIslam';
 }
 
-let app;
-try {
-  const appModule = require('../backend/dist/bundle.js');
-  app = appModule.default || appModule;
-} catch (bundleErr) {
-  try {
-    const appModule = require('../backend/dist/index.js');
-    app = appModule.default || appModule;
-  } catch (distErr) {
-    console.error('[api/index.js] Error initializing:', bundleErr, distErr);
-    throw distErr;
-  }
-}
+const appModule = require('../backend/dist/bundle.js');
+const app = appModule.default || appModule;
 
 module.exports = app;
