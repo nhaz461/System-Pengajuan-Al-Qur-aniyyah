@@ -3,6 +3,7 @@ import { asyncHandler, createError } from '../middleware/error.middleware';
 import { AuthRequest } from '../middleware/auth.middleware';
 import prisma from '../lib/prisma';
 import { syncSubmissionWithSsh, findTopSshMatches } from '../services/ssh-matcher.service';
+import { triggerAutoBackupExcel } from '../services/excel-backup.service';
 
 // GET /api/reviews (Daftar Pengajuan untuk Review Keuangan)
 export const getReviewSubmissions = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -57,6 +58,8 @@ export const getReviewSubmissions = asyncHandler(async (req: AuthRequest, res: R
     activity: sub.activity.name,
     fiscalYear: sub.fiscalYear.year,
     title: sub.title,
+    activityDate: sub.activityDate,
+    picName: sub.picName || sub.submittedBy.name,
     totalAnggaran: sub.totalParsing,
     totalExcel: sub.totalExcel,
     totalReviewed: sub.totalReviewed,
@@ -232,7 +235,7 @@ export const startReview = asyncHandler(async (req: AuthRequest, res: Response) 
 // PATCH /api/reviews/items/:itemId (INLINE EDITING HARGA REVIEW - Section L & M)
 export const updateReviewItem = asyncHandler(async (req: AuthRequest, res: Response) => {
   const itemId = parseInt(req.params.itemId);
-  const { reviewPrice, reviewNote, sshItemId, volume } = req.body;
+  const { reviewPrice, reviewNote, sshItemId, volume, keterangan } = req.body;
 
   const item = await prisma.submissionItem.findUnique({
     where: { id: itemId },
@@ -296,6 +299,7 @@ export const updateReviewItem = asyncHandler(async (req: AuthRequest, res: Respo
       jumlah: newVolume * (item.originalPrice || item.hargaSatuan),
       reviewPrice: newReviewPrice,
       reviewNote: reviewNote !== undefined ? reviewNote : item.reviewNote,
+      keterangan: keterangan !== undefined ? keterangan : item.keterangan,
       sshItemId: targetSshItemId,
       sshPrice: currentSshPrice,
       sshStatus: newSshStatus,
@@ -328,6 +332,9 @@ export const updateReviewItem = asyncHandler(async (req: AuthRequest, res: Respo
     where: { id: item.submissionId },
     data: { totalReviewed },
   });
+
+  // Auto-backup ke file Excel lokal
+  triggerAutoBackupExcel('REVIEW_ITEM_UPDATED');
 
   res.json({
     success: true,

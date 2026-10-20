@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { asyncHandler, createError } from '../middleware/error.middleware';
+import { triggerAutoBackupExcel } from '../services/excel-backup.service';
 
 // GET /api/disbursements (Daftar Pengajuan untuk Pencairan)
 export const getDisbursementSubmissions = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -68,6 +69,8 @@ export const getDisbursementSubmissions = asyncHandler(async (req: AuthRequest, 
     activity: sub.activity.name,
     fiscalYear: sub.fiscalYear.year,
     title: sub.title,
+    activityDate: sub.activityDate,
+    picName: sub.picName || sub.submittedBy.name,
     totalAnggaran: sub.totalParsing,
     totalExcel: sub.totalExcel,
     totalReviewed: sub.totalReviewed,
@@ -246,6 +249,9 @@ export const executeDisbursement = asyncHandler(async (req: AuthRequest, res: Re
     },
   });
 
+  // Auto-backup ke file Excel lokal
+  triggerAutoBackupExcel('DISBURSEMENT_PAYMENT');
+
   res.json({
     success: true,
     message: `Pencairan dana ${sub.submissionNumber} sebesar Rp${disburseAmount.toLocaleString('id-ID')} berhasil dicatat. Status: DICAIRKAN.`,
@@ -297,7 +303,7 @@ export const getKuitansiPencairan = asyncHandler(async (req: AuthRequest, res: R
     paymentMethod: disburse?.paymentMethod || 'TRANSFER',
     bankName: disburse?.bankName || null,
     accountNumber: disburse?.accountNumber || null,
-    recipientName: disburse?.recipientName || sub.submittedBy.name,
+    recipientName: disburse?.recipientName || sub.picName?.trim() || sub.submittedBy.name,
     notes: disburse?.notes || sub.disbursementNotes,
     disbursedBy: sub.disbursedBy?.name || 'Nasrullah, S.Pd (Bendahara Umum)',
     approvedBy: sub.approvedBy?.name || 'Dr. KH. Muhammad Sobron Zayya, SQ., MA (Ketua Umum)',
@@ -361,13 +367,15 @@ export const getSppdData = asyncHandler(async (req: AuthRequest, res: Response) 
       volume: it.volume,
       // Bagian Pengajuan Dana
       pengajuanHarga: it.originalPrice,
-      pengajuanRincian: `${it.volume} ${it.satuan}`,
+      pengajuanRincian: it.keterangan || `${it.volume} ${it.satuan}`,
       pengajuanTotal: origSubtotal,
       // Bagian Pencairan Dana
       pencairanHarga: effPrice,
-      pencairanRincian: `${it.volume} ${it.satuan}`,
+      pencairanRincian: it.reviewNote?.startsWith('Disetujui:')
+        ? it.reviewNote.replace(/^Disetujui:\s*/i, '')
+        : (it.keterangan || `${it.volume} ${it.satuan}`),
       pencairanTotal: cairSubtotal,
-      keterangan: it.keterangan || it.reviewNote || null,
+      keterangan: it.reviewNote || it.keterangan || null,
       sshStatus: it.sshStatus,
     };
   });
@@ -420,7 +428,7 @@ export const getSppdData = asyncHandler(async (req: AuthRequest, res: Response) 
     items,
     signatories: {
       pemohon: {
-        nama: sub.submittedBy?.name || 'Kepala Unit Pemohon',
+        nama: sub.picName?.trim() || sub.submittedBy?.name || 'Kepala Unit Pemohon',
         jabatan: `Pemohon (${sub.unit.name})`,
       },
       keuangan: {

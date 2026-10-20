@@ -47,6 +47,7 @@ export const reviewService = {
       reviewNote?: string;
       sshItemId?: number | null;
       volume?: number;
+      keterangan?: string;
     }
   ) => {
     const { data } = await api.patch<

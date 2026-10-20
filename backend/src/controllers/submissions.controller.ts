@@ -5,6 +5,7 @@ import { asyncHandler, createError } from '../middleware/error.middleware';
 import { AuthRequest } from '../middleware/auth.middleware';
 import prisma from '../lib/prisma';
 import { parseSubmissionExcel } from '../services/submission-parser.service';
+import { triggerAutoBackupExcel } from '../services/excel-backup.service';
 
 // POST /api/submissions/preview
 export const previewSubmission = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -54,6 +55,7 @@ export const createSubmission = asyncHandler(async (req: AuthRequest, res: Respo
     fiscalYearId,
     title,
     activityDate,
+    picName,
     notes,
     tempFilePath,
     filename,
@@ -108,12 +110,36 @@ export const createSubmission = asyncHandler(async (req: AuthRequest, res: Respo
   // Hitung selisih
   const selisih = finalTotalExcel - finalTotalParsing;
 
-  // Generate nomor pengajuan unik: PENG/[KODE_UNIT]/[TAHUN]/[NO_URUT]
-  const countInYear = await prisma.submission.count({
-    where: { fiscalYearId: fiscalYear.id },
+  // Generate nomor pengajuan unik yang aman dari benturan/penghapusan:
+  // Format: PENG/[KODE_UNIT]/[TAHUN]/[NO_URUT]
+  const prefix = `PENG/${unit.code}/${fiscalYear.year}/`;
+  
+  // Ambil semua pengajuan dengan prefix tersebut untuk mencari angka urut tertinggi
+  const existingWithPrefix = await prisma.submission.findMany({
+    where: {
+      submissionNumber: { startsWith: prefix },
+    },
+    select: { submissionNumber: true },
   });
-  const seqNum = String(countInYear + 1).padStart(4, '0');
-  const submissionNumber = `PENG/${unit.code}/${fiscalYear.year}/${seqNum}`;
+
+  let maxSeq = 0;
+  for (const s of existingWithPrefix) {
+    const parts = s.submissionNumber.split('/');
+    const lastPart = parts[parts.length - 1];
+    const num = parseInt(lastPart, 10);
+    if (!isNaN(num) && num > maxSeq) {
+      maxSeq = num;
+    }
+  }
+
+  let nextSeq = maxSeq + 1;
+  let submissionNumber = `${prefix}${String(nextSeq).padStart(4, '0')}`;
+
+  // Double check ke database untuk memastikan 100% unik
+  while (await prisma.submission.findUnique({ where: { submissionNumber } })) {
+    nextSeq++;
+    submissionNumber = `${prefix}${String(nextSeq).padStart(4, '0')}`;
+  }
 
   // Pindahkan file permanent ke folder uploads/pengajuan/
   let permanentFilePath: string | null = null;
@@ -145,6 +171,7 @@ export const createSubmission = asyncHandler(async (req: AuthRequest, res: Respo
       fiscalYearId: fiscalYear.id,
       title: title.trim(),
       activityDate: activityDate ? new Date(activityDate) : new Date(),
+      picName: picName?.trim() || req.user?.name || null,
       originalFilename: filename || 'Pengajuan_Anggaran.xlsx',
       filePath: permanentFilePath,
       totalExcel: finalTotalExcel,
@@ -193,6 +220,9 @@ export const createSubmission = asyncHandler(async (req: AuthRequest, res: Respo
     },
   });
 
+  // Auto-backup ke file Excel lokal
+  triggerAutoBackupExcel('CREATE_SUBMISSION');
+
   res.status(201).json({
     success: true,
     message: `Pengajuan ${submission.submissionNumber} berhasil disimpan dengan ${dbItems.length} item.`,
@@ -226,10 +256,11 @@ export const getSubmissions = asyncHandler(async (req: AuthRequest, res: Respons
   if (search && typeof search === 'string' && search.trim()) {
     const s = search.trim();
     whereClause.OR = [
-      { submissionNumber: { contains: s } },
-      { title: { contains: s } },
-      { unit: { name: { contains: s } } },
-      { activity: { name: { contains: s } } },
+      { submissionNumber: { contains: s, mode: 'insensitive' } },
+      { title: { contains: s, mode: 'insensitive' } },
+      { picName: { contains: s, mode: 'insensitive' } },
+      { unit: { name: { contains: s, mode: 'insensitive' } } },
+      { activity: { name: { contains: s, mode: 'insensitive' } } },
     ];
   }
 
@@ -264,6 +295,8 @@ export const getSubmissions = asyncHandler(async (req: AuthRequest, res: Respons
     activity: sub.activity.name,
     fiscalYear: sub.fiscalYear.year,
     title: sub.title,
+    activityDate: sub.activityDate,
+    picName: sub.picName || sub.submittedBy.name,
     totalAnggaran: sub.totalParsing,
     totalExcel: sub.totalExcel,
     selisih: sub.selisih,
@@ -329,14 +362,120 @@ export const getSubmissionDetail = asyncHandler(async (req: AuthRequest, res: Re
 
 // GET /api/submissions/template/download
 export const downloadSubmissionTemplate = asyncHandler(async (_req: Request, res: Response) => {
-  const templatePath = path.resolve(
-    __dirname,
-    '../../../samples/Template_Pengajuan_Resmi_Yayasan.xlsx'
-  );
+  const candidates = [
+    path.resolve(__dirname, '../../../Template_Pengajuan_Resmi_Yayasan.xlsx'),
+    path.resolve(__dirname, '../../../samples/Template_Pengajuan_Resmi_Yayasan.xlsx'),
+    path.resolve(__dirname, '../../templates/Template_Pengajuan_Resmi_Yayasan.xlsx'),
+    path.resolve(process.cwd(), 'Template_Pengajuan_Resmi_Yayasan.xlsx'),
+    path.resolve(process.cwd(), 'samples/Template_Pengajuan_Resmi_Yayasan.xlsx'),
+    path.resolve(process.cwd(), '../Template_Pengajuan_Resmi_Yayasan.xlsx'),
+    path.resolve(process.cwd(), '../../Template_Pengajuan_Resmi_Yayasan.xlsx'),
+    'D:/Sistem_Keuangan_Portable/Template_Pengajuan_Resmi_Yayasan.xlsx',
+    'D:/PENGAJUAN & PENCAIRAN/Template_Pengajuan_Resmi_Yayasan.xlsx',
+    'D:/PENGAJUAN & PENCAIRAN/samples/Template_Pengajuan_Resmi_Yayasan.xlsx',
+  ];
 
-  if (!fs.existsSync(templatePath)) {
+  let templatePath: string | null = null;
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      templatePath = c;
+      break;
+    }
+  }
+
+  if (!templatePath) {
     throw createError('File template resmi belum tersedia.', 404);
   }
 
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
   res.download(templatePath, 'Template_Pengajuan_Resmi_Yayasan_2026.xlsx');
+});
+
+// DELETE /api/submissions/:id
+export const deleteSubmission = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.id);
+
+  const sub = await prisma.submission.findUnique({
+    where: { id },
+    include: {
+      unit: true,
+    },
+  });
+
+  if (!sub) throw createError('Pengajuan tidak ditemukan.', 404);
+
+  // Validasi Hak Akses:
+  if (req.user?.role === 'UNIT') {
+    if (req.user.unitId !== sub.unitId) {
+      throw createError('Anda tidak memiliki akses untuk menghapus pengajuan unit lain.', 403);
+    }
+    if (['DISETUJUI', 'DICAIRKAN', 'SELESAI'].includes(sub.status)) {
+      throw createError(
+        `Pengajuan dengan status ${sub.status} tidak dapat dihapus oleh Unit. Hubungi Bendahara/Admin.`,
+        400
+      );
+    }
+  }
+
+  // Jika sudah DICAIRKAN / SELESAI, hanya Admin yang boleh hapus
+  if (['DICAIRKAN', 'SELESAI'].includes(sub.status) && req.user?.role !== 'ADMIN') {
+    throw createError(
+      'Pengajuan yang dananya sudah dicairkan tidak dapat dihapus. Silakan hubungi Administrator.',
+      400
+    );
+  }
+
+  // Jalankan transaksi penghapusan bertingkat
+  await prisma.$transaction(async (tx) => {
+    // 1. Hapus LpjItems jika ada
+    await tx.lpjItem.deleteMany({ where: { submissionId: id } });
+
+    // 2. Hapus Disbursements jika ada
+    await tx.disbursement.deleteMany({ where: { submissionId: id } });
+
+    // 3. Hapus Reviews
+    await tx.submissionReview.deleteMany({ where: { submissionId: id } });
+
+    // 4. Hapus Items
+    await tx.submissionItem.deleteMany({ where: { submissionId: id } });
+
+    // 5. Hapus Submission utama
+    await tx.submission.delete({ where: { id } });
+
+    // 6. Audit Trail
+    await tx.auditLog.create({
+      data: {
+        userId: req.user?.id,
+        action: 'DELETE_SUBMISSION',
+        entity: 'Submission',
+        entityId: id,
+        oldValue: JSON.stringify({
+          submissionNumber: sub.submissionNumber,
+          title: sub.title,
+          unit: sub.unit.name,
+          total: sub.totalParsing,
+          status: sub.status,
+        }),
+        note: `Pengajuan nomor ${sub.submissionNumber} ("${sub.title}") berhasil dihapus oleh ${req.user?.name}.`,
+      },
+    });
+  });
+
+  // Hapus file fisik jika ada
+  if (sub.filePath && fs.existsSync(sub.filePath)) {
+    try {
+      fs.unlinkSync(sub.filePath);
+    } catch (_) {}
+  }
+
+  // Auto-backup ke file Excel lokal
+  triggerAutoBackupExcel('DELETE_SUBMISSION');
+
+  res.json({
+    success: true,
+    message: `Pengajuan ${sub.submissionNumber} ("${sub.title}") berhasil dihapus.`,
+  });
 });

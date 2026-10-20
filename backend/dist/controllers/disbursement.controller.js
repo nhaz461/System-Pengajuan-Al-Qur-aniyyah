@@ -8,6 +8,7 @@ const prisma_1 = __importDefault(require("../lib/prisma"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const error_middleware_1 = require("../middleware/error.middleware");
+const excel_backup_service_1 = require("../services/excel-backup.service");
 // GET /api/disbursements (Daftar Pengajuan untuk Pencairan)
 exports.getDisbursementSubmissions = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     const { status, unitId, search, page = '1', limit = '50' } = req.query;
@@ -65,6 +66,8 @@ exports.getDisbursementSubmissions = (0, error_middleware_1.asyncHandler)(async 
         activity: sub.activity.name,
         fiscalYear: sub.fiscalYear.year,
         title: sub.title,
+        activityDate: sub.activityDate,
+        picName: sub.picName || sub.submittedBy.name,
         totalAnggaran: sub.totalParsing,
         totalExcel: sub.totalExcel,
         totalReviewed: sub.totalReviewed,
@@ -215,6 +218,8 @@ exports.executeDisbursement = (0, error_middleware_1.asyncHandler)(async (req, r
             note: `Pencairan dana sebesar Rp${disburseAmount.toLocaleString('id-ID')} (${pMethod}) untuk pengajuan ${sub.submissionNumber} kepada ${recipientName}. Ref: ${refNo}`,
         },
     });
+    // Auto-backup ke file Excel lokal
+    (0, excel_backup_service_1.triggerAutoBackupExcel)('DISBURSEMENT_PAYMENT');
     res.json({
         success: true,
         message: `Pencairan dana ${sub.submissionNumber} sebesar Rp${disburseAmount.toLocaleString('id-ID')} berhasil dicatat. Status: DICAIRKAN.`,
@@ -262,7 +267,7 @@ exports.getKuitansiPencairan = (0, error_middleware_1.asyncHandler)(async (req, 
         paymentMethod: disburse?.paymentMethod || 'TRANSFER',
         bankName: disburse?.bankName || null,
         accountNumber: disburse?.accountNumber || null,
-        recipientName: disburse?.recipientName || sub.submittedBy.name,
+        recipientName: disburse?.recipientName || sub.picName?.trim() || sub.submittedBy.name,
         notes: disburse?.notes || sub.disbursementNotes,
         disbursedBy: sub.disbursedBy?.name || 'Nasrullah, S.Pd (Bendahara Umum)',
         approvedBy: sub.approvedBy?.name || 'Dr. KH. Muhammad Sobron Zayya, SQ., MA (Ketua Umum)',
@@ -317,13 +322,15 @@ exports.getSppdData = (0, error_middleware_1.asyncHandler)(async (req, res) => {
             volume: it.volume,
             // Bagian Pengajuan Dana
             pengajuanHarga: it.originalPrice,
-            pengajuanRincian: `${it.volume} ${it.satuan}`,
+            pengajuanRincian: it.keterangan || `${it.volume} ${it.satuan}`,
             pengajuanTotal: origSubtotal,
             // Bagian Pencairan Dana
             pencairanHarga: effPrice,
-            pencairanRincian: `${it.volume} ${it.satuan}`,
+            pencairanRincian: it.reviewNote?.startsWith('Disetujui:')
+                ? it.reviewNote.replace(/^Disetujui:\s*/i, '')
+                : (it.keterangan || `${it.volume} ${it.satuan}`),
             pencairanTotal: cairSubtotal,
-            keterangan: it.keterangan || it.reviewNote || null,
+            keterangan: it.reviewNote || it.keterangan || null,
             sshStatus: it.sshStatus,
         };
     });
@@ -370,7 +377,7 @@ exports.getSppdData = (0, error_middleware_1.asyncHandler)(async (req, res) => {
         items,
         signatories: {
             pemohon: {
-                nama: sub.submittedBy?.name || 'Kepala Unit Pemohon',
+                nama: sub.picName?.trim() || sub.submittedBy?.name || 'Kepala Unit Pemohon',
                 jabatan: `Pemohon (${sub.unit.name})`,
             },
             keuangan: {

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAuditLogs = exports.downloadBackup = exports.createBackup = exports.getBackups = void 0;
+exports.openBackupFolder = exports.getExcelBackups = exports.createExcelBackup = exports.downloadExcelBackup = exports.getAuditLogs = exports.downloadBackup = exports.createBackup = exports.getBackups = void 0;
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
 const prisma_1 = __importDefault(require("../lib/prisma"));
@@ -109,6 +109,105 @@ exports.getAuditLogs = (0, error_middleware_1.asyncHandler)(async (req, res) => 
             limit: l,
             totalPages: Math.ceil(total / l),
         },
+    });
+});
+// ══════════════════════════════════════════════════════════════════
+// EXCEL DATABASE BACKUP CONTROLLERS (MENGHIMPUN SELURUH DATA LOKAL)
+// ══════════════════════════════════════════════════════════════════
+const child_process_1 = require("child_process");
+const excel_backup_service_1 = require("../services/excel-backup.service");
+// GET /api/backups/excel/download (Unduh Langsung File Backup Excel)
+exports.downloadExcelBackup = (0, error_middleware_1.asyncHandler)(async (req, res) => {
+    const wb = await (0, excel_backup_service_1.buildFullDatabaseWorkbook)();
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const filename = `DATABASE_KEUANGAN_ALQURANIYYAH_${dateStr}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    await wb.xlsx.write(res);
+    res.end();
+    // Juga trigger simpan ke folder lokal komputer di latar belakang
+    (0, excel_backup_service_1.saveLocalExcelBackup)().catch(console.error);
+});
+// POST /api/backups/excel/create (Simpan Backup Excel ke Folder Lokal)
+exports.createExcelBackup = (0, error_middleware_1.asyncHandler)(async (req, res) => {
+    const result = await (0, excel_backup_service_1.saveLocalExcelBackup)();
+    await prisma_1.default.auditLog.create({
+        data: {
+            userId: req.user?.id,
+            action: 'DATABASE_BACKUP_EXCEL',
+            entity: 'System',
+            note: `Backup Excel lokal dibuat: ${result.filename} (${result.sizeFormatted})`,
+        },
+    });
+    res.json({
+        success: true,
+        message: 'Backup database Excel berhasil disimpan ke penyimpanan lokal.',
+        data: result,
+    });
+});
+// GET /api/backups/excel/list (Daftar File Backup Excel Lokal)
+exports.getExcelBackups = (0, error_middleware_1.asyncHandler)(async (_req, res) => {
+    const dirs = (0, excel_backup_service_1.getLocalBackupDirs)();
+    const filesList = [];
+    for (const dir of dirs) {
+        if (fs_1.default.existsSync(dir)) {
+            // 1. Cek file master terbaru
+            const masterPath = path_1.default.join(dir, 'DATABASE_KEUANGAN_LOKAL_TERBARU.xlsx');
+            if (fs_1.default.existsSync(masterPath)) {
+                const stat = fs_1.default.statSync(masterPath);
+                if (!filesList.some((f) => f.filename === 'DATABASE_KEUANGAN_LOKAL_TERBARU.xlsx')) {
+                    filesList.push({
+                        filename: 'DATABASE_KEUANGAN_LOKAL_TERBARU.xlsx',
+                        path: masterPath,
+                        sizeBytes: stat.size,
+                        sizeFormatted: `${(stat.size / 1024).toFixed(1)} KB`,
+                        createdAt: stat.mtime,
+                        isLatest: true,
+                    });
+                }
+            }
+            // 2. Cek folder riwayat
+            const histDir = path_1.default.join(dir, 'riwayat');
+            if (fs_1.default.existsSync(histDir)) {
+                const hFiles = fs_1.default.readdirSync(histDir).filter((f) => f.endsWith('.xlsx'));
+                for (const hf of hFiles) {
+                    const hPath = path_1.default.join(histDir, hf);
+                    const stat = fs_1.default.statSync(hPath);
+                    if (!filesList.some((f) => f.filename === hf)) {
+                        filesList.push({
+                            filename: hf,
+                            path: hPath,
+                            sizeBytes: stat.size,
+                            sizeFormatted: `${(stat.size / 1024).toFixed(1)} KB`,
+                            createdAt: stat.mtime,
+                            isLatest: false,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    filesList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    res.json({
+        success: true,
+        data: filesList,
+    });
+});
+// POST /api/backups/excel/open-folder (Buka Folder Backup di Windows Explorer)
+exports.openBackupFolder = (0, error_middleware_1.asyncHandler)(async (_req, res) => {
+    const dirs = (0, excel_backup_service_1.getLocalBackupDirs)();
+    const targetDir = dirs[0] || 'D:/Sistem_Keuangan_Portable/backups';
+    if (!fs_1.default.existsSync(targetDir)) {
+        fs_1.default.mkdirSync(targetDir, { recursive: true });
+    }
+    // Buka folder di Windows Explorer
+    (0, child_process_1.exec)(`explorer.exe "${targetDir.replace(/\//g, '\\')}"`);
+    res.json({
+        success: true,
+        message: `Folder backup dibuka di Windows Explorer: ${targetDir}`,
+        data: { path: targetDir },
     });
 });
 //# sourceMappingURL=backup.controller.js.map

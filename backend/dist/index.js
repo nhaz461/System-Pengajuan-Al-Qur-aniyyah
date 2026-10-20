@@ -8,13 +8,18 @@ const cors_1 = __importDefault(require("cors"));
 const helmet_1 = __importDefault(require("helmet"));
 const morgan_1 = __importDefault(require("morgan"));
 const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 const dotenv_1 = require("dotenv");
-(0, dotenv_1.config)();
-if (!process.env.DATABASE_URL) {
-    process.env.DATABASE_URL = 'postgresql://postgres.fnfcjpyaqzpncbnlktdq:Janganlupa461@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres';
+const envPath = path_1.default.resolve(__dirname, '../.env');
+if (fs_1.default.existsSync(envPath)) {
+    (0, dotenv_1.config)({ path: envPath });
 }
-if (!process.env.DIRECT_URL) {
-    process.env.DIRECT_URL = process.env.DATABASE_URL;
+else {
+    (0, dotenv_1.config)();
+}
+const defaultDbPath = path_1.default.resolve(__dirname, '../prisma/alquraniyyah.db').replace(/\\/g, '/');
+if (!process.env.DATABASE_URL) {
+    process.env.DATABASE_URL = `file:${defaultDbPath}`;
 }
 if (!process.env.JWT_SECRET) {
     process.env.JWT_SECRET = 'AlQuraniyyah_JWT_Secret_2026_YayasanPendidikanIslam';
@@ -56,7 +61,7 @@ if (process.env.NODE_ENV !== 'test') {
 // ─── Static Files ─────────────────────────────────────────────
 app.use('/uploads', express_1.default.static(path_1.default.resolve(__dirname, '../../uploads')));
 // ─── Health Check & Live Diagnostics ────────────────────────
-app.get(['/', '/health', '/api/health', '/api/system/diagnostics'], async (_req, res) => {
+app.get(['/health', '/api/health', '/api/system/diagnostics'], async (_req, res) => {
     let dbStatus = 'disconnected';
     let userCount = 0;
     let dbLatencyMs = 0;
@@ -106,6 +111,29 @@ app.use(['/api/approvals', '/approvals'], approval_routes_1.default);
 app.use(['/api/disbursements', '/disbursements'], disbursement_routes_1.default);
 app.use(['/api/lpj', '/lpj'], lpj_routes_1.default);
 app.use(['/api/backups', '/backups'], backup_routes_1.default);
+// ─── Frontend Static SPA ──────────────────────────────────────
+const frontendCandidates = [
+    path_1.default.resolve(__dirname, '../../frontend/dist'),
+    path_1.default.resolve(__dirname, '../frontend/dist'),
+    path_1.default.resolve(process.cwd(), 'frontend/dist'),
+    path_1.default.resolve(process.cwd(), '../frontend/dist'),
+];
+let frontendDistPath = null;
+for (const p of frontendCandidates) {
+    if (fs_1.default.existsSync(p) && fs_1.default.existsSync(path_1.default.join(p, 'index.html'))) {
+        frontendDistPath = p;
+        break;
+    }
+}
+if (frontendDistPath) {
+    app.use(express_1.default.static(frontendDistPath));
+    app.get('*', (req, res, next) => {
+        if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/auth')) {
+            return next();
+        }
+        res.sendFile(path_1.default.join(frontendDistPath, 'index.html'));
+    });
+}
 // ─── 404 Handler ──────────────────────────────────────────────
 app.use((_req, res) => {
     res.status(404).json({

@@ -16,5 +16,7 @@ router.post('/preview', upload_middleware_1.uploadExcel.single('file'), submissi
 router.post('/', submissions_controller_1.createSubmission);
 // Detail pengajuan
 router.get('/:id', submissions_controller_1.getSubmissionDetail);
+// Hapus pengajuan
+router.delete('/:id', submissions_controller_1.deleteSubmission);
 exports.default = router;
 //# sourceMappingURL=submissions.routes.js.map

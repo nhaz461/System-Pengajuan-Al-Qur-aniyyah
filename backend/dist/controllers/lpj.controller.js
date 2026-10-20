@@ -66,6 +66,8 @@ exports.getLpjSubmissions = (0, error_middleware_1.asyncHandler)(async (req, res
             activity: sub.activity.name,
             fiscalYear: sub.fiscalYear.year,
             title: sub.title,
+            activityDate: sub.activityDate,
+            picName: sub.picName || sub.submittedBy.name,
             totalAnggaran: sub.totalParsing,
             totalExcel: sub.totalExcel,
             totalReviewed: sub.totalReviewed,
@@ -298,7 +300,7 @@ exports.getLembarLpj = (0, error_middleware_1.asyncHandler)(async (req, res) => 
         signatories: {
             pelaksana: {
                 jabatan: `Penanggung Jawab Kegiatan (${sub.unit.name})`,
-                nama: sub.submittedBy.name,
+                nama: sub.picName?.trim() || sub.submittedBy.name,
             },
             verifikator: {
                 jabatan: 'Bendahara Umum Yayasan',

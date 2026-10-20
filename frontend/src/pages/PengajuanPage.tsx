@@ -20,6 +20,7 @@ import {
   ChevronRight,
   TrendingUp,
   CreditCard,
+  Trash2,
 } from 'lucide-react';
 import {
   SubmissionListItem,
@@ -101,6 +102,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
   const [activityDate, setActivityDate] = useState(
     new Date().toISOString().split('T')[0]
   );
+  const [picName, setPicName] = useState(user?.name || '');
   const [notes, setNotes] = useState('');
 
   // File & preview states
@@ -155,6 +157,10 @@ const UploadModal: React.FC<UploadModalProps> = ({
       setError('Tanggal pelaksanaan kegiatan wajib diisi.');
       return;
     }
+    if (!picName.trim()) {
+      setError('Nama PIC / Yang mengajukan kegiatan wajib diisi.');
+      return;
+    }
 
     setError('');
     setIsSubmitting(true);
@@ -166,6 +172,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
         fiscalYearId: selectedFyId,
         title: title.trim(),
         activityDate,
+        picName: picName.trim(),
         notes: notes.trim() || undefined,
         tempFilePath: previewData.tempFilePath,
         filename: previewData.filename,
@@ -297,6 +304,37 @@ const UploadModal: React.FC<UploadModalProps> = ({
             </div>
 
             <div>
+              <label className="form-label">
+                Nama PIC / Yang Mengajukan <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={picName}
+                onChange={(e) => setPicName(e.target.value)}
+                placeholder="Contoh: Ust. Ahmad Fauzi / Panitia Pelaksana"
+                className="form-input text-xs"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="form-label">
+                Tanggal Pelaksanaan Kegiatan <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={activityDate}
+                  onChange={(e) => setActivityDate(e.target.value)}
+                  className="form-input text-xs w-full"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
               <label className="form-label">Catatan Tambahan (Opsional)</label>
               <input
                 type="text"
@@ -346,7 +384,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
                 </span>
                 <a
                   href="/api/submissions/template/download"
-                  download
+                  download="Template_Pengajuan_Resmi_Yayasan_2026.xlsx"
                   className="btn btn-secondary btn-sm flex items-center gap-1.5 text-xs text-primary-800 font-semibold"
                 >
                   <Download size={13} />
@@ -453,9 +491,18 @@ const UploadModal: React.FC<UploadModalProps> = ({
                               {it.kategori}
                             </span>
                           </td>
-                          <td className="px-3 py-2 font-medium text-gray-900">{it.uraian}</td>
+                          <td className="px-3 py-2 font-medium text-gray-900">
+                            <div>{it.uraian}</div>
+                            {it.rincianVolume && (
+                              <div className="mt-0.5">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                  Perkalian: {it.rincianVolume}
+                                </span>
+                              </div>
+                            )}
+                          </td>
                           <td className="px-3 py-2 text-right text-gray-700">{formatRupiah(it.hargaSatuan)}</td>
-                          <td className="px-3 py-2 text-center text-gray-700">{it.volume}</td>
+                          <td className="px-3 py-2 text-center text-gray-800 font-bold">{it.volume.toLocaleString('id-ID')}</td>
                           <td className="px-3 py-2 text-gray-600">{it.satuan}</td>
                           <td className="px-3 py-2 text-right font-semibold text-primary-800">
                             {formatRupiah(it.jumlah)}
@@ -566,7 +613,7 @@ const DetailModal: React.FC<DetailModalProps> = ({ submissionId, onClose }) => {
           ) : detail ? (
             <>
               {/* Meta Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 text-xs">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 p-4 bg-gray-50 rounded-xl border border-gray-100 text-xs">
                 <div>
                   <p className="text-gray-400">Unit Pemohon</p>
                   <p className="font-bold text-gray-900 mt-0.5">{detail.unit.name}</p>
@@ -578,9 +625,18 @@ const DetailModal: React.FC<DetailModalProps> = ({ submissionId, onClose }) => {
                   <p className="text-[11px] text-gray-500">TA {detail.fiscalYear.year}</p>
                 </div>
                 <div>
+                  <p className="text-gray-400">Tgl Pelaksanaan</p>
+                  <p className="font-bold text-emerald-800 mt-0.5">
+                    {detail.activityDate ? formatDate(detail.activityDate) : '-'}
+                  </p>
+                  <p className="text-[11px] text-gray-600 font-medium">
+                    PIC: {detail.picName || detail.submittedBy.name}
+                  </p>
+                </div>
+                <div>
                   <p className="text-gray-400">Tanggal Pengajuan</p>
                   <p className="font-bold text-gray-900 mt-0.5">{formatDate(detail.submittedAt)}</p>
-                  <p className="text-[11px] text-gray-500">Oleh: {detail.submittedBy.name}</p>
+                  <p className="text-[11px] text-gray-500">Akun: {detail.submittedBy.name}</p>
                 </div>
                 <div>
                   <p className="text-gray-400">Total Usulan Anggaran</p>
@@ -670,11 +726,31 @@ const PengajuanPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [viewDetailId, setViewDetailId] = useState<number | null>(null);
+  const [deleteSub, setDeleteSub] = useState<SubmissionListItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Pagination
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+
+  // Handle Delete Submission
+  const handleDelete = async () => {
+    if (!deleteSub) return;
+    setIsDeleting(true);
+    try {
+      const res = await submissionsService.delete(deleteSub.id);
+      if (res.success) {
+        toast.success(res.message || 'Pengajuan berhasil dihapus.');
+        setDeleteSub(null);
+        loadSubmissions(page, selectedUnitId, selectedStatus, search);
+      }
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Load Submissions
   const loadSubmissions = async (p = 1, u = selectedUnitId, s = selectedStatus, q = search) => {
@@ -754,7 +830,7 @@ const PengajuanPage: React.FC = () => {
         <div className="flex items-center gap-3">
           <a
             href="/api/submissions/template/download"
-            download
+            download="Template_Pengajuan_Resmi_Yayasan_2026.xlsx"
             className="btn btn-secondary text-xs flex items-center gap-1.5"
             title="Download Format Standar Excel Pengajuan"
           >
@@ -840,7 +916,7 @@ const PengajuanPage: React.FC = () => {
                 <th className="px-4 py-3 text-right w-36">Total Anggaran</th>
                 <th className="px-4 py-3 text-right w-32">Realisasi</th>
                 <th className="px-4 py-3 text-left w-40">Status</th>
-                <th className="px-4 py-3 text-right w-20">Aksi</th>
+                <th className="px-4 py-3 text-right w-24">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
@@ -881,6 +957,18 @@ const PengajuanPage: React.FC = () => {
                     <td className="px-4 py-3">
                       <p className="font-medium text-gray-900 text-xs">{sub.activity}</p>
                       <p className="text-[11px] text-gray-500 truncate max-w-xs">{sub.title}</p>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
+                        {sub.activityDate && (
+                          <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-medium">
+                            <Calendar size={11} /> {formatDate(sub.activityDate)}
+                          </span>
+                        )}
+                        {sub.picName && (
+                          <span className="text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded font-medium">
+                            PIC: {sub.picName}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-right font-bold text-gray-900 text-xs">
                       {formatRupiah(sub.totalAnggaran)}
@@ -892,16 +980,27 @@ const PengajuanPage: React.FC = () => {
                       <StatusBadge status={sub.status} />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setViewDetailId(sub.id);
-                        }}
-                        className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-primary-800"
-                        title="Lihat Detail"
-                      >
-                        <ChevronRight size={18} />
-                      </button>
+                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => setViewDetailId(sub.id)}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-primary-800 transition-colors"
+                          title="Lihat Detail Rincian"
+                        >
+                          <Eye size={16} />
+                        </button>
+                        {(user?.role === 'ADMIN' ||
+                          user?.role === 'KEUANGAN' ||
+                          (user?.role === 'UNIT' &&
+                            !['DISETUJUI', 'DICAIRKAN', 'SELESAI'].includes(sub.status))) && (
+                          <button
+                            onClick={() => setDeleteSub(sub)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                            title="Hapus Dokumen Pengajuan"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -964,6 +1063,60 @@ const PengajuanPage: React.FC = () => {
           submissionId={viewDetailId}
           onClose={() => setViewDetailId(null)}
         />
+      )}
+
+      {/* ── Modal Konfirmasi Hapus Pengajuan ── */}
+      {deleteSub && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-gray-100 space-y-4">
+            <div className="w-12 h-12 rounded-xl bg-red-50 text-red-600 flex items-center justify-center mx-auto">
+              <Trash2 size={24} />
+            </div>
+            <div className="text-center space-y-2">
+              <h3 className="text-base font-bold text-gray-900">Hapus Pengajuan Anggaran?</h3>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Apakah Anda yakin ingin menghapus berkas pengajuan ini?
+              </p>
+              <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 text-left text-xs space-y-1 mt-2">
+                <p className="font-mono font-bold text-gray-900">{deleteSub.submissionNumber}</p>
+                <p className="text-gray-700 font-medium truncate">{deleteSub.title}</p>
+                <p className="text-gray-500">{deleteSub.unit} • TA {deleteSub.fiscalYear}</p>
+                <p className="text-primary-800 font-bold">{formatRupiah(deleteSub.totalAnggaran)}</p>
+              </div>
+              <p className="text-[11px] text-red-600 font-medium pt-1">
+                Perhatian: Seluruh rincian item belanja dan riwayat dokumen ini akan dihapus permanen.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeleteSub(null)}
+                className="flex-1 btn-secondary text-xs py-2"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDelete}
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold text-xs py-2 px-4 rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" />
+                    Menghapus...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={14} />
+                    Ya, Hapus
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -7,6 +7,7 @@ exports.getSshCandidates = exports.finishReview = exports.applyAllSsh = exports.
 const error_middleware_1 = require("../middleware/error.middleware");
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const ssh_matcher_service_1 = require("../services/ssh-matcher.service");
+const excel_backup_service_1 = require("../services/excel-backup.service");
 // GET /api/reviews (Daftar Pengajuan untuk Review Keuangan)
 exports.getReviewSubmissions = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     const { unitId, status, search, page = '1', limit = '50' } = req.query;
@@ -53,6 +54,8 @@ exports.getReviewSubmissions = (0, error_middleware_1.asyncHandler)(async (req, 
         activity: sub.activity.name,
         fiscalYear: sub.fiscalYear.year,
         title: sub.title,
+        activityDate: sub.activityDate,
+        picName: sub.picName || sub.submittedBy.name,
         totalAnggaran: sub.totalParsing,
         totalExcel: sub.totalExcel,
         totalReviewed: sub.totalReviewed,
@@ -214,7 +217,7 @@ exports.startReview = (0, error_middleware_1.asyncHandler)(async (req, res) => {
 // PATCH /api/reviews/items/:itemId (INLINE EDITING HARGA REVIEW - Section L & M)
 exports.updateReviewItem = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     const itemId = parseInt(req.params.itemId);
-    const { reviewPrice, reviewNote, sshItemId, volume } = req.body;
+    const { reviewPrice, reviewNote, sshItemId, volume, keterangan } = req.body;
     const item = await prisma_1.default.submissionItem.findUnique({
         where: { id: itemId },
         include: { submission: true, sshItem: true },
@@ -273,6 +276,7 @@ exports.updateReviewItem = (0, error_middleware_1.asyncHandler)(async (req, res)
             jumlah: newVolume * (item.originalPrice || item.hargaSatuan),
             reviewPrice: newReviewPrice,
             reviewNote: reviewNote !== undefined ? reviewNote : item.reviewNote,
+            keterangan: keterangan !== undefined ? keterangan : item.keterangan,
             sshItemId: targetSshItemId,
             sshPrice: currentSshPrice,
             sshStatus: newSshStatus,
@@ -302,6 +306,8 @@ exports.updateReviewItem = (0, error_middleware_1.asyncHandler)(async (req, res)
         where: { id: item.submissionId },
         data: { totalReviewed },
     });
+    // Auto-backup ke file Excel lokal
+    (0, excel_backup_service_1.triggerAutoBackupExcel)('REVIEW_ITEM_UPDATED');
     res.json({
         success: true,
         message: 'Harga review berhasil diperbarui.',

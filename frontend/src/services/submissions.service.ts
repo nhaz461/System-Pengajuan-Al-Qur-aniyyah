@@ -29,6 +29,7 @@ export const submissionsService = {
     fiscalYearId: number;
     title: string;
     activityDate?: string;
+    picName?: string;
     notes?: string;
     tempFilePath?: string;
     filename?: string;
@@ -68,5 +69,10 @@ export const submissionsService = {
 
   downloadTemplateUrl: () => {
     return '/api/submissions/template/download';
+  },
+
+  delete: async (id: number) => {
+    const { data } = await api.delete<ApiResponse<any>>(`/submissions/${id}`);
+    return data;
   },
 };

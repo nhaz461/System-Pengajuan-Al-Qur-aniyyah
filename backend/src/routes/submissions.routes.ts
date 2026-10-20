@@ -5,6 +5,7 @@ import {
   getSubmissions,
   getSubmissionDetail,
   downloadSubmissionTemplate,
+  deleteSubmission,
 } from '../controllers/submissions.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { uploadExcel } from '../middleware/upload.middleware';
@@ -27,5 +28,8 @@ router.post('/', createSubmission);
 
 // Detail pengajuan
 router.get('/:id', getSubmissionDetail);
+
+// Hapus pengajuan
+router.delete('/:id', deleteSubmission);
 
 export default router;

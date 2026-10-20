@@ -1,8 +1,7 @@
 // Prisma Schema - Sistem Administrasi Keuangan Yayasan Al-Qur'aniyyah v1.0
 
 generator client {
-  provider      = "prisma-client-js"
-  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -184,6 +183,7 @@ model Submission {
   submittedById    Int       @map("submitted_by_id")
   submittedAt      DateTime  @default(now()) @map("submitted_at")
   activityDate     DateTime? @map("activity_date") // Tanggal Pelaksanaan Kegiatan
+  picName          String?   @map("pic_name")      // Nama PIC / Yang Mengajukan
   notes            String?
 
   // Persetujuan Pimpinan (Phase 5)

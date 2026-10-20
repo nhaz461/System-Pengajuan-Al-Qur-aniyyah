@@ -25,6 +25,7 @@ import {
   LembarPengesahanData,
 } from '../services/approval.service';
 import { SubmissionListItem } from '../types';
+import { formatDate } from '../utils/format';
 
 export const ApprovalPage: React.FC = () => {
   const [submissions, setSubmissions] = useState<SubmissionListItem[]>([]);
@@ -325,6 +326,18 @@ export const ApprovalPage: React.FC = () => {
                     <td className="px-5 py-4">
                       <div className="font-medium text-slate-800">{getUnitName(item.unit)}</div>
                       <div className="text-xs text-slate-500">{getActivityName(item.activity)} • TA {getFiscalYear(item.fiscalYear)}</div>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
+                        {item.activityDate && (
+                          <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-medium">
+                            <Calendar className="w-3 h-3" /> {formatDate(item.activityDate)}
+                          </span>
+                        )}
+                        {item.picName && (
+                          <span className="text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded font-medium">
+                            PIC: {item.picName}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-4 text-right font-medium text-slate-600">
                       {formatRupiah(item.totalExcel || (item as any).totalAnggaran)}
@@ -469,9 +482,18 @@ export const ApprovalPage: React.FC = () => {
                               <td className="p-2.5 text-slate-500">{idx + 1}</td>
                               <td className="p-2.5">
                                 <div className="font-medium text-slate-900">{it.uraian}</div>
-                                {it.reviewNote && (
-                                  <div className="text-[10px] text-amber-700 italic">Catatan: {it.reviewNote}</div>
-                                )}
+                                <div className="flex flex-wrap items-center gap-1 mt-0.5">
+                                  {it.keterangan && (
+                                    <span className="text-[10px] text-slate-500 font-medium bg-slate-100 px-1.5 py-0.5 rounded">
+                                      {it.keterangan}
+                                    </span>
+                                  )}
+                                  {it.reviewNote && (
+                                    <span className="text-[10px] text-blue-800 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 font-bold">
+                                      {it.reviewNote}
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="p-2.5 text-center">{it.volume} {it.satuan}</td>
                               <td className="p-2.5 text-right text-slate-600">{formatRupiah(it.originalPrice)}</td>
@@ -654,6 +676,22 @@ export const ApprovalPage: React.FC = () => {
                       {formatRupiah(printData.submission.totalApproved)}
                     </span>
                   </div>
+                  {printData.submission.activityDate && (
+                    <div>
+                      <span className="text-slate-500">Tgl Pelaksanaan:</span>{' '}
+                      <span className="font-semibold text-emerald-800">
+                        {formatDate(printData.submission.activityDate)}
+                      </span>
+                    </div>
+                  )}
+                  {printData.submission.picName && (
+                    <div>
+                      <span className="text-slate-500">Nama PIC:</span>{' '}
+                      <span className="font-semibold text-slate-800">
+                        {printData.submission.picName}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Ringkasan Item */}

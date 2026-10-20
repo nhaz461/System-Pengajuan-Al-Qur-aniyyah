@@ -206,6 +206,8 @@ export interface SubmissionListItem {
   activity: string;
   fiscalYear: number;
   title: string;
+  activityDate?: string | null;
+  picName?: string | null;
   totalAnggaran: number;
   totalExcel: number;
   totalParsing?: number;
@@ -227,6 +229,8 @@ export interface SubmissionDetail {
   activityId: number;
   fiscalYearId: number;
   title: string;
+  activityDate?: string | null;
+  picName?: string | null;
   originalFilename: string;
   filePath?: string | null;
   totalExcel: number;
@@ -266,6 +270,7 @@ export interface SubmissionPreviewItem {
   satuan: string;
   jumlah: number;
   keterangan: string | null;
+  rincianVolume?: string | null;
 }
 
 export interface SubmissionPreviewResponse {

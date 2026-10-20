@@ -124,3 +124,138 @@ export const getAuditLogs = asyncHandler(async (req: AuthRequest, res: Response)
     },
   });
 });
+
+// ══════════════════════════════════════════════════════════════════
+// EXCEL DATABASE BACKUP CONTROLLERS (MENGHIMPUN SELURUH DATA LOKAL)
+// ══════════════════════════════════════════════════════════════════
+
+import { exec } from 'child_process';
+import {
+  buildFullDatabaseWorkbook,
+  saveLocalExcelBackup,
+  getLocalBackupDirs,
+} from '../services/excel-backup.service';
+
+// GET /api/backups/excel/download (Unduh Langsung File Backup Excel)
+export const downloadExcelBackup = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const wb = await buildFullDatabaseWorkbook();
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const filename = `DATABASE_KEUANGAN_ALQURANIYYAH_${dateStr}.xlsx`;
+
+  res.setHeader(
+    'Content-Type',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${filename}"`
+  );
+
+  await wb.xlsx.write(res);
+  res.end();
+
+  // Juga trigger simpan ke folder lokal komputer di latar belakang
+  saveLocalExcelBackup().catch(console.error);
+});
+
+// POST /api/backups/excel/create (Simpan Backup Excel ke Folder Lokal)
+export const createExcelBackup = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const result = await saveLocalExcelBackup();
+
+  await prisma.auditLog.create({
+    data: {
+      userId: req.user?.id,
+      action: 'DATABASE_BACKUP_EXCEL',
+      entity: 'System',
+      note: `Backup Excel lokal dibuat: ${result.filename} (${result.sizeFormatted})`,
+    },
+  });
+
+  res.json({
+    success: true,
+    message: 'Backup database Excel berhasil disimpan ke penyimpanan lokal.',
+    data: result,
+  });
+});
+
+// GET /api/backups/excel/list (Daftar File Backup Excel Lokal)
+export const getExcelBackups = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const dirs = getLocalBackupDirs();
+  const filesList: Array<{
+    filename: string;
+    path: string;
+    sizeBytes: number;
+    sizeFormatted: string;
+    createdAt: Date;
+    isLatest: boolean;
+  }> = [];
+
+  for (const dir of dirs) {
+    if (fs.existsSync(dir)) {
+      // 1. Cek file master terbaru
+      const masterPath = path.join(dir, 'DATABASE_KEUANGAN_LOKAL_TERBARU.xlsx');
+      if (fs.existsSync(masterPath)) {
+        const stat = fs.statSync(masterPath);
+        if (!filesList.some((f) => f.filename === 'DATABASE_KEUANGAN_LOKAL_TERBARU.xlsx')) {
+          filesList.push({
+            filename: 'DATABASE_KEUANGAN_LOKAL_TERBARU.xlsx',
+            path: masterPath,
+            sizeBytes: stat.size,
+            sizeFormatted: `${(stat.size / 1024).toFixed(1)} KB`,
+            createdAt: stat.mtime,
+            isLatest: true,
+          });
+        }
+      }
+
+      // 2. Cek folder riwayat
+      const histDir = path.join(dir, 'riwayat');
+      if (fs.existsSync(histDir)) {
+        const hFiles = fs.readdirSync(histDir).filter((f) => f.endsWith('.xlsx'));
+        for (const hf of hFiles) {
+          const hPath = path.join(histDir, hf);
+          const stat = fs.statSync(hPath);
+          if (!filesList.some((f) => f.filename === hf)) {
+            filesList.push({
+              filename: hf,
+              path: hPath,
+              sizeBytes: stat.size,
+              sizeFormatted: `${(stat.size / 1024).toFixed(1)} KB`,
+              createdAt: stat.mtime,
+              isLatest: false,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  filesList.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  res.json({
+    success: true,
+    data: filesList,
+  });
+});
+
+// POST /api/backups/excel/open-folder (Buka Folder Backup di Windows Explorer)
+export const openBackupFolder = asyncHandler(async (_req: AuthRequest, res: Response) => {
+  const dirs = getLocalBackupDirs();
+  const targetDir = dirs[0] || 'D:/Sistem_Keuangan_Portable/backups';
+
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+
+  // Buka folder di Windows Explorer
+  exec(`explorer.exe "${targetDir.replace(/\//g, '\\')}"`);
+
+  res.json({
+    success: true,
+    message: `Folder backup dibuka di Windows Explorer: ${targetDir}`,
+    data: { path: targetDir },
+  });
+});
+

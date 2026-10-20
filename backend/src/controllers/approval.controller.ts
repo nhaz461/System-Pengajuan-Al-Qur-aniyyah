@@ -2,6 +2,7 @@ import { Response } from 'express';
 import prisma from '../lib/prisma';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { asyncHandler, createError } from '../middleware/error.middleware';
+import { triggerAutoBackupExcel } from '../services/excel-backup.service';
 
 // GET /api/approvals (Daftar Pengajuan untuk Persetujuan Pimpinan)
 export const getApprovalSubmissions = asyncHandler(async (req: AuthRequest, res: Response) => {
@@ -66,6 +67,8 @@ export const getApprovalSubmissions = asyncHandler(async (req: AuthRequest, res:
     activity: sub.activity.name,
     fiscalYear: sub.fiscalYear.year,
     title: sub.title,
+    activityDate: sub.activityDate,
+    picName: sub.picName || sub.submittedBy.name,
     totalAnggaran: sub.totalParsing,
     totalExcel: sub.totalExcel,
     totalReviewed: sub.totalReviewed,
@@ -240,6 +243,9 @@ export const decideApproval = asyncHandler(async (req: AuthRequest, res: Respons
     },
   });
 
+  // Auto-backup ke file Excel lokal
+  triggerAutoBackupExcel('APPROVAL_DECIDED');
+
   res.json({
     success: true,
     message: `Pengajuan ${sub.submissionNumber} berhasil diproses dengan status: ${newStatus}.`,
@@ -288,9 +294,9 @@ export const getLembarPengesahan = asyncHandler(async (req: AuthRequest, res: Re
       submission: sub,
       signatories: {
         pemohon: {
-          jabatan: `Penanggung Jawab ${sub.unit.name}`,
-          nama: sub.submittedBy.name,
-          tanggal: sub.submittedAt,
+          jabatan: `Penanggung Jawab / PIC ${sub.unit.name}`,
+          nama: sub.picName || sub.submittedBy.name,
+          tanggal: sub.activityDate || sub.submittedAt,
         },
         keuangan: {
           jabatan: 'Bendahara Umum Yayasan',

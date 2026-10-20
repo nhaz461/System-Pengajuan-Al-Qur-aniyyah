@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getLembarPengesahan = exports.decideApproval = exports.getApprovalDetail = exports.getApprovalSubmissions = void 0;
 const prisma_1 = __importDefault(require("../lib/prisma"));
 const error_middleware_1 = require("../middleware/error.middleware");
+const excel_backup_service_1 = require("../services/excel-backup.service");
 // GET /api/approvals (Daftar Pengajuan untuk Persetujuan Pimpinan)
 exports.getApprovalSubmissions = (0, error_middleware_1.asyncHandler)(async (req, res) => {
     const { status, unitId, search, page = '1', limit = '50' } = req.query;
@@ -63,6 +64,8 @@ exports.getApprovalSubmissions = (0, error_middleware_1.asyncHandler)(async (req
         activity: sub.activity.name,
         fiscalYear: sub.fiscalYear.year,
         title: sub.title,
+        activityDate: sub.activityDate,
+        picName: sub.picName || sub.submittedBy.name,
         totalAnggaran: sub.totalParsing,
         totalExcel: sub.totalExcel,
         totalReviewed: sub.totalReviewed,
@@ -221,6 +224,8 @@ exports.decideApproval = (0, error_middleware_1.asyncHandler)(async (req, res) =
             note: `Pimpinan ${req.user?.name} mengambil keputusan '${newStatus}' untuk pengajuan ${sub.submissionNumber}.${finalApprovedAmount ? ` Nominal Disetujui: Rp${finalApprovedAmount.toLocaleString('id-ID')}` : ''}${notes ? ` Catatan: ${notes}` : ''}`,
         },
     });
+    // Auto-backup ke file Excel lokal
+    (0, excel_backup_service_1.triggerAutoBackupExcel)('APPROVAL_DECIDED');
     res.json({
         success: true,
         message: `Pengajuan ${sub.submissionNumber} berhasil diproses dengan status: ${newStatus}.`,
@@ -265,9 +270,9 @@ exports.getLembarPengesahan = (0, error_middleware_1.asyncHandler)(async (req, r
             submission: sub,
             signatories: {
                 pemohon: {
-                    jabatan: `Penanggung Jawab ${sub.unit.name}`,
-                    nama: sub.submittedBy.name,
-                    tanggal: sub.submittedAt,
+                    jabatan: `Penanggung Jawab / PIC ${sub.unit.name}`,
+                    nama: sub.picName || sub.submittedBy.name,
+                    tanggal: sub.activityDate || sub.submittedAt,
                 },
                 keuangan: {
                     jabatan: 'Bendahara Umum Yayasan',

@@ -7,6 +7,7 @@ export interface ParsedSubmissionItem {
     satuan: string;
     jumlah: number;
     keterangan: string | null;
+    rincianVolume?: string | null;
 }
 export interface SubmissionParseResult {
     sheetName: string;

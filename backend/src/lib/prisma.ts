@@ -1,10 +1,9 @@
 import { PrismaClient } from '@prisma/client';
+import path from 'path';
 
+const defaultDbPath = path.resolve(__dirname, '../../prisma/alquraniyyah.db').replace(/\\/g, '/');
 if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = 'postgresql://postgres.fnfcjpyaqzpncbnlktdq:Janganlupa461@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres';
-}
-if (!process.env.DIRECT_URL) {
-  process.env.DIRECT_URL = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = `file:${defaultDbPath}`;
 }
 
 // Singleton instance untuk mencegah multiple connections

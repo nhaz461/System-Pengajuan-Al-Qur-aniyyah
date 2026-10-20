@@ -71,6 +71,8 @@ export const getLpjSubmissions = asyncHandler(async (req: AuthRequest, res: Resp
       activity: sub.activity.name,
       fiscalYear: sub.fiscalYear.year,
       title: sub.title,
+      activityDate: sub.activityDate,
+      picName: sub.picName || sub.submittedBy.name,
       totalAnggaran: sub.totalParsing,
       totalExcel: sub.totalExcel,
       totalReviewed: sub.totalReviewed,
@@ -333,7 +335,7 @@ export const getLembarLpj = asyncHandler(async (req: AuthRequest, res: Response)
     signatories: {
       pelaksana: {
         jabatan: `Penanggung Jawab Kegiatan (${sub.unit.name})`,
-        nama: sub.submittedBy.name,
+        nama: sub.picName?.trim() || sub.submittedBy.name,
       },
       verifikator: {
         jabatan: 'Bendahara Umum Yayasan',

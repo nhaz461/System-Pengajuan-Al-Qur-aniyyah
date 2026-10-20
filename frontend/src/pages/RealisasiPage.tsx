@@ -27,6 +27,7 @@ import {
   LembarLpjData,
 } from '../services/lpj.service';
 import { useAuth } from '../contexts/AuthContext';
+import { formatDate } from '../utils/format';
 
 export const RealisasiPage: React.FC = () => {
   const { user } = useAuth();
@@ -371,6 +372,18 @@ export const RealisasiPage: React.FC = () => {
                     <td className="px-5 py-4">
                       <div className="font-medium text-slate-800">{item.unit}</div>
                       <div className="text-xs text-slate-500">{item.activity} • TA {item.fiscalYear}</div>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
+                        {item.activityDate && (
+                          <span className="inline-flex items-center gap-1 text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-medium">
+                            <Calendar className="w-3 h-3" /> {formatDate(item.activityDate)}
+                          </span>
+                        )}
+                        {item.picName && (
+                          <span className="text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded font-medium">
+                            PIC: {item.picName}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-4 text-right font-bold text-blue-700">
                       {formatRupiah(item.totalDisbursed)}

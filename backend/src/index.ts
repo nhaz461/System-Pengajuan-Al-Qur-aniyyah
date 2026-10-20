@@ -3,15 +3,19 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
+import fs from 'fs';
 import { config } from 'dotenv';
 
-config();
-
-if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = 'postgresql://postgres.fnfcjpyaqzpncbnlktdq:Janganlupa461@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres';
+const envPath = path.resolve(__dirname, '../.env');
+if (fs.existsSync(envPath)) {
+  config({ path: envPath });
+} else {
+  config();
 }
-if (!process.env.DIRECT_URL) {
-  process.env.DIRECT_URL = process.env.DATABASE_URL;
+
+const defaultDbPath = path.resolve(__dirname, '../prisma/alquraniyyah.db').replace(/\\/g, '/');
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = `file:${defaultDbPath}`;
 }
 if (!process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'AlQuraniyyah_JWT_Secret_2026_YayasanPendidikanIslam';
@@ -61,7 +65,7 @@ if (process.env.NODE_ENV !== 'test') {
 app.use('/uploads', express.static(path.resolve(__dirname, '../../uploads')));
 
 // ─── Health Check & Live Diagnostics ────────────────────────
-app.get(['/', '/health', '/api/health', '/api/system/diagnostics'], async (_req, res) => {
+app.get(['/health', '/api/health', '/api/system/diagnostics'], async (_req, res) => {
   let dbStatus = 'disconnected';
   let userCount = 0;
   let dbLatencyMs = 0;
@@ -115,6 +119,30 @@ app.use(['/api/approvals', '/approvals'], approvalRoutes);
 app.use(['/api/disbursements', '/disbursements'], disbursementRoutes);
 app.use(['/api/lpj', '/lpj'], lpjRoutes);
 app.use(['/api/backups', '/backups'], backupRoutes);
+
+// ─── Frontend Static SPA ──────────────────────────────────────
+const frontendCandidates = [
+  path.resolve(__dirname, '../../frontend/dist'),
+  path.resolve(__dirname, '../frontend/dist'),
+  path.resolve(process.cwd(), 'frontend/dist'),
+  path.resolve(process.cwd(), '../frontend/dist'),
+];
+let frontendDistPath: string | null = null;
+for (const p of frontendCandidates) {
+  if (fs.existsSync(p) && fs.existsSync(path.join(p, 'index.html'))) {
+    frontendDistPath = p;
+    break;
+  }
+}
+if (frontendDistPath) {
+  app.use(express.static(frontendDistPath));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads') || req.path.startsWith('/auth')) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDistPath!, 'index.html'));
+  });
+}
 
 // ─── 404 Handler ──────────────────────────────────────────────
 app.use((_req, res) => {

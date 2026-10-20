@@ -19,9 +19,13 @@ import {
   ChevronDown,
   User,
   Bell,
+  FileSpreadsheet,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { cn } from '../utils/format';
+import { backupService } from '../services/backup.service';
+import toast from 'react-hot-toast';
 
 interface NavItem {
   label: string;
@@ -41,7 +45,7 @@ const navItems: NavItem[] = [
   { label: 'Master Unit', path: '/master-unit', icon: Building2, roles: ['ADMIN'] },
   { label: 'Master Kegiatan', path: '/master-kegiatan', icon: Calendar, roles: ['ADMIN'] },
   { label: 'Tahun Anggaran', path: '/tahun-anggaran', icon: CalendarDays, roles: ['ADMIN'] },
-  { label: 'Backup & Restore', path: '/backup', icon: HardDrive, roles: ['ADMIN'] },
+  { label: 'Backup & Restore', path: '/backup', icon: HardDrive, roles: ['ADMIN', 'KEUANGAN'] },
   { label: 'Pengaturan', path: '/pengaturan', icon: Settings },
 ];
 
@@ -149,8 +153,24 @@ const Sidebar: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 // ─── Main App Layout ─────────────────────────────────────────
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isBackingUp, setIsBackingUp] = useState(false);
   const location = useLocation();
   const { user } = useAuth();
+
+  const handleQuickBackupExcel = async () => {
+    try {
+      setIsBackingUp(true);
+      toast.loading('Menghimpun seluruh database ke file Excel...', { id: 'backup-toast' });
+      await backupService.downloadExcelBackup();
+      toast.success('Database Excel berhasil diunduh dan tersimpan ke folder backup lokal!', {
+        id: 'backup-toast',
+      });
+    } catch {
+      toast.error('Gagal mengunduh backup Excel.', { id: 'backup-toast' });
+    } finally {
+      setIsBackingUp(false);
+    }
+  };
 
   // Get current page title
   const currentItem = navItems.find((item) =>
@@ -186,7 +206,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {/* ── Main Content Area ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Header */}
-        <header className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm">
+        <header className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-2.5 flex items-center justify-between shadow-xs">
           <div className="flex items-center gap-3">
             {/* Mobile menu toggle */}
             <button
@@ -207,15 +227,32 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </div>
 
           {/* Header Right */}
-          <div className="flex items-center gap-2">
-            <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors relative">
+          <div className="flex items-center gap-2.5">
+            {/* Tombol Backup Excel Cepat (Himpun seluruh data lokal) */}
+            <button
+              type="button"
+              onClick={handleQuickBackupExcel}
+              disabled={isBackingUp}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl bg-emerald-50 text-[#1B4332] border border-emerald-300 hover:bg-emerald-100 shadow-2xs transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+              title="Unduh & simpan rekap seluruh data aplikasi ke file Excel lokal"
+            >
+              {isBackingUp ? (
+                <Loader2 size={14} className="animate-spin text-emerald-700" />
+              ) : (
+                <FileSpreadsheet size={15} className="text-[#1B4332]" />
+              )}
+              <span className="hidden sm:inline">Backup Excel</span>
+            </button>
+
+            <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors relative" title="Notifikasi">
               <Bell size={18} className="text-gray-600" />
             </button>
+
             <div className="hidden sm:flex items-center gap-2 pl-2 border-l border-gray-200">
-              <div className="w-7 h-7 rounded-full bg-primary-800 flex items-center justify-center">
+              <div className="w-7 h-7 rounded-full bg-[#1B4332] flex items-center justify-center shadow-2xs">
                 <User size={14} className="text-white" />
               </div>
-              <span className="text-sm font-medium text-gray-700 max-w-32 truncate">
+              <span className="text-sm font-medium text-gray-700 max-w-36 truncate">
                 {user?.name}
               </span>
             </div>
