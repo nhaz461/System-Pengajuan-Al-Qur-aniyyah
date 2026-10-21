@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "postinstall": "node scripts/postinstall.js",
-    "build:backend": "npm run build --prefix backend",
-    "build:frontend": "npm run build --prefix frontend",
+    "build:backend": "npm --prefix backend install && npm --prefix backend run build",
+    "build:frontend": "npm --prefix frontend install && npm --prefix frontend run build",
     "build": "npm run build:backend && npm run build:frontend",
     "start": "npm start --prefix backend"
   },
