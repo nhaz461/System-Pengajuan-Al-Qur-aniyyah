@@ -36,17 +36,16 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { label: 'Pengajuan Unit', path: '/pengajuan', icon: FileText },
-  { label: 'Review Keuangan', path: '/review', icon: Search, roles: ['ADMIN', 'KEUANGAN'] },
-  { label: 'Persetujuan Pimpinan', path: '/persetujuan', icon: CheckSquare, roles: ['ADMIN', 'PIMPINAN'] },
-  { label: 'Pencairan', path: '/pencairan', icon: Banknote, roles: ['ADMIN', 'KEUANGAN'] },
+  { label: 'Pengajuan Anggaran', path: '/pengajuan', icon: FileText },
+  { label: 'Review Anggaran & SSH', path: '/review', icon: Search },
+  { label: 'Persetujuan (Approval)', path: '/persetujuan', icon: CheckSquare },
+  { label: 'Pencairan Dana (SPPD)', path: '/pencairan', icon: Banknote },
   { label: 'Realisasi & LPJ', path: '/realisasi', icon: ClipboardList },
-  { label: 'Master SSH 2026', path: '/master-ssh', icon: BookOpen, roles: ['ADMIN', 'KEUANGAN'] },
-  { label: 'Master Unit', path: '/master-unit', icon: Building2, roles: ['ADMIN'] },
-  { label: 'Master Kegiatan', path: '/master-kegiatan', icon: Calendar, roles: ['ADMIN'] },
-  { label: 'Tahun Anggaran', path: '/tahun-anggaran', icon: CalendarDays, roles: ['ADMIN'] },
-  { label: 'Backup & Restore', path: '/backup', icon: HardDrive, roles: ['ADMIN', 'KEUANGAN'] },
-  { label: 'Pengaturan', path: '/pengaturan', icon: Settings },
+  { label: 'Master SSH 2026', path: '/master-ssh', icon: BookOpen },
+  { label: 'Master Unit Sekolah', path: '/master-unit', icon: Building2 },
+  { label: 'Master Pos Kegiatan', path: '/master-kegiatan', icon: Calendar },
+  { label: 'Tahun Anggaran', path: '/tahun-anggaran', icon: CalendarDays },
+  { label: 'Backup & Arsip Excel', path: '/backup', icon: HardDrive },
 ];
 
 const getRoleBadgeColor = (role: string) => {

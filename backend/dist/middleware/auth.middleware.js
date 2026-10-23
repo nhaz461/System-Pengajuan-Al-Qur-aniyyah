@@ -37,11 +37,13 @@ const authorize = (...roles) => {
             next((0, error_middleware_1.createError)('Autentikasi diperlukan.', 401));
             return;
         }
-        if (!roles.includes(req.user.role)) {
-            next((0, error_middleware_1.createError)('Anda tidak memiliki hak akses untuk melakukan tindakan ini.', 403));
-            return;
+        // Mode Akses Tunggal Bendahara Keuangan:
+        // User KEUANGAN, ADMIN, atau BENDAHARA memiliki hak akses 100% ke seluruh fitur sistem
+        const isMasterUser = ['KEUANGAN', 'ADMIN', 'BENDAHARA', 'PIMPINAN'].includes(req.user.role);
+        if (isMasterUser || roles.length === 0 || roles.includes(req.user.role)) {
+            return next();
         }
-        next();
+        next((0, error_middleware_1.createError)('Anda tidak memiliki hak akses untuk melakukan tindakan ini.', 403));
     };
 };
 exports.authorize = authorize;

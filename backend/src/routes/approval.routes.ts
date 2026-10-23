@@ -10,7 +10,7 @@ import { authenticate, authorize } from '../middleware/auth.middleware';
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize('ADMIN', 'PIMPINAN'));
+router.use(authorize('ADMIN', 'KEUANGAN', 'PIMPINAN', 'BENDAHARA'));
 
 // Daftar Pengajuan untuk Persetujuan Pimpinan
 router.get('/', getApprovalSubmissions);

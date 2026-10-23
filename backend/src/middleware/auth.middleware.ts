@@ -49,10 +49,12 @@ export const authorize = (...roles: string[]) => {
       next(createError('Autentikasi diperlukan.', 401));
       return;
     }
-    if (!roles.includes(req.user.role)) {
-      next(createError('Anda tidak memiliki hak akses untuk melakukan tindakan ini.', 403));
-      return;
+    // Mode Akses Tunggal Bendahara Keuangan:
+    // User KEUANGAN, ADMIN, atau BENDAHARA memiliki hak akses 100% ke seluruh fitur sistem
+    const isMasterUser = ['KEUANGAN', 'ADMIN', 'BENDAHARA', 'PIMPINAN'].includes(req.user.role);
+    if (isMasterUser || roles.length === 0 || roles.includes(req.user.role)) {
+      return next();
     }
-    next();
+    next(createError('Anda tidak memiliki hak akses untuk melakukan tindakan ini.', 403));
   };
 };

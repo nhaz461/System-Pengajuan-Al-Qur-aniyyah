@@ -43,7 +43,9 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode; roles?: string[] }> 
     return <Navigate to="/login" replace />;
   }
 
-  if (roles && user && !roles.includes(user.role)) {
+  // Mode Akses Tunggal Bendahara: User KEUANGAN, ADMIN, BENDAHARA, PIMPINAN bisa akses semua halaman
+  const isMasterUser = ['KEUANGAN', 'ADMIN', 'BENDAHARA', 'PIMPINAN'].includes(user?.role || '');
+  if (roles && user && !isMasterUser && !roles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
 

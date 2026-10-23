@@ -5,7 +5,7 @@ const approval_controller_1 = require("../controllers/approval.controller");
 const auth_middleware_1 = require("../middleware/auth.middleware");
 const router = (0, express_1.Router)();
 router.use(auth_middleware_1.authenticate);
-router.use((0, auth_middleware_1.authorize)('ADMIN', 'PIMPINAN'));
+router.use((0, auth_middleware_1.authorize)('ADMIN', 'KEUANGAN', 'PIMPINAN', 'BENDAHARA'));
 // Daftar Pengajuan untuk Persetujuan Pimpinan
 router.get('/', approval_controller_1.getApprovalSubmissions);
 // Detail Workspace Persetujuan Pimpinan
