@@ -13,15 +13,24 @@ export interface AuthRequest extends Request {
 }
 
 export const authenticate = (req: AuthRequest, _res: Response, next: NextFunction): void => {
+  const defaultBendahara = {
+    id: 2,
+    email: 'keuangan@alquraniyyah.sch.id',
+    name: 'Nasrullah, S.Pd',
+    role: 'KEUANGAN',
+  };
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Mode Akses Bebas Tanpa Login: Otomatis masuk sebagai Bendahara Keuangan
+    req.user = defaultBendahara;
+    return next();
+  }
+
+  const token = authHeader.substring(7);
+  const secret = process.env.JWT_SECRET || 'AlQuraniyyah_JWT_Secret_2026_YayasanPendidikanIslam';
+
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw createError('Token autentikasi tidak ditemukan. Silakan login kembali.', 401);
-    }
-
-    const token = authHeader.substring(7);
-    const secret = process.env.JWT_SECRET || 'AlQuraniyyah_JWT_Secret_2026_YayasanPendidikanIslam';
-
     const decoded = jwt.verify(token, secret) as {
       id: number;
       email: string;
@@ -29,17 +38,12 @@ export const authenticate = (req: AuthRequest, _res: Response, next: NextFunctio
       role: string;
       unitId?: number;
     };
-
     req.user = decoded;
     next();
-  } catch (error) {
-    if (error instanceof jwt.JsonWebTokenError) {
-      next(createError('Token tidak valid. Silakan login kembali.', 401));
-    } else if (error instanceof jwt.TokenExpiredError) {
-      next(createError('Sesi Anda telah berakhir. Silakan login kembali.', 401));
-    } else {
-      next(error);
-    }
+  } catch (_error) {
+    // Fallback otomatis ke Bendahara Keuangan
+    req.user = defaultBendahara;
+    next();
   }
 };
 

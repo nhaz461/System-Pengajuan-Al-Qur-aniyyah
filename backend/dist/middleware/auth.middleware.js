@@ -7,27 +7,29 @@ exports.authorize = exports.authenticate = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const error_middleware_1 = require("./error.middleware");
 const authenticate = (req, _res, next) => {
+    const defaultBendahara = {
+        id: 2,
+        email: 'keuangan@alquraniyyah.sch.id',
+        name: 'Nasrullah, S.Pd',
+        role: 'KEUANGAN',
+    };
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        // Mode Akses Bebas Tanpa Login: Otomatis masuk sebagai Bendahara Keuangan
+        req.user = defaultBendahara;
+        return next();
+    }
+    const token = authHeader.substring(7);
+    const secret = process.env.JWT_SECRET || 'AlQuraniyyah_JWT_Secret_2026_YayasanPendidikanIslam';
     try {
-        const authHeader = req.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            throw (0, error_middleware_1.createError)('Token autentikasi tidak ditemukan. Silakan login kembali.', 401);
-        }
-        const token = authHeader.substring(7);
-        const secret = process.env.JWT_SECRET || 'AlQuraniyyah_JWT_Secret_2026_YayasanPendidikanIslam';
         const decoded = jsonwebtoken_1.default.verify(token, secret);
         req.user = decoded;
         next();
     }
-    catch (error) {
-        if (error instanceof jsonwebtoken_1.default.JsonWebTokenError) {
-            next((0, error_middleware_1.createError)('Token tidak valid. Silakan login kembali.', 401));
-        }
-        else if (error instanceof jsonwebtoken_1.default.TokenExpiredError) {
-            next((0, error_middleware_1.createError)('Sesi Anda telah berakhir. Silakan login kembali.', 401));
-        }
-        else {
-            next(error);
-        }
+    catch (_error) {
+        // Fallback otomatis ke Bendahara Keuangan
+        req.user = defaultBendahara;
+        next();
     }
 };
 exports.authenticate = authenticate;

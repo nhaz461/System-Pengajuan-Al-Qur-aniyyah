@@ -14,12 +14,20 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+const defaultBendaharaUser: User = {
+  id: 2,
+  email: 'keuangan@alquraniyyah.sch.id',
+  name: 'Nasrullah, S.Pd',
+  role: 'KEUANGAN',
+  unit: null,
+};
 
-  // Load dari localStorage saat init
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(defaultBendaharaUser);
+  const [token, setToken] = useState<string | null>('auto-authenticated-bendahara-token');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Load dari localStorage saat init jika ada custom user, jika tidak tetap default Bendahara
   useEffect(() => {
     const savedToken = localStorage.getItem('auth_token');
     const savedUser = localStorage.getItem('auth_user');
@@ -29,9 +37,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setToken(savedToken);
         setUser(JSON.parse(savedUser));
       } catch {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_user');
+        setUser(defaultBendaharaUser);
+        setToken('auto-authenticated-bendahara-token');
       }
+    } else {
+      setUser(defaultBendaharaUser);
+      setToken('auto-authenticated-bendahara-token');
+      localStorage.setItem('auth_token', 'auto-authenticated-bendahara-token');
+      localStorage.setItem('auth_user', JSON.stringify(defaultBendaharaUser));
     }
     setIsLoading(false);
   }, []);

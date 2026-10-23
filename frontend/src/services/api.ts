@@ -24,15 +24,6 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired atau tidak valid
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
-      // Redirect ke login
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
-    }
     return Promise.reject(error);
   }
 );
