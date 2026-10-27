@@ -557,9 +557,10 @@ const UploadModal: React.FC<UploadModalProps> = ({
 interface DetailModalProps {
   submissionId: number;
   onClose: () => void;
+  onDelete?: (submission: SubmissionListItem) => void;
 }
 
-const DetailModal: React.FC<DetailModalProps> = ({ submissionId, onClose }) => {
+const DetailModal: React.FC<DetailModalProps> = ({ submissionId, onClose, onDelete }) => {
   const [detail, setDetail] = useState<SubmissionDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -697,9 +698,41 @@ const DetailModal: React.FC<DetailModalProps> = ({ submissionId, onClose }) => {
 
         {/* Footer */}
         <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
-          <p className="text-xs text-gray-500 font-mono">
-            {detail?.originalFilename ? `File: ${detail.originalFilename}` : ''}
-          </p>
+          <div className="flex items-center gap-3">
+            {onDelete && detail && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onDelete({
+                    id: detail.id,
+                    submissionNumber: detail.submissionNumber,
+                    title: detail.title,
+                    unit: detail.unit.name,
+                    unitCode: detail.unit.code,
+                    activity: detail.activity.name,
+                    fiscalYear: detail.fiscalYear.year,
+                    totalAnggaran: detail.totalParsing,
+                    totalExcel: detail.totalExcel,
+                    selisih: detail.totalParsing - detail.totalExcel,
+                    realisasi: 0,
+                    status: detail.status,
+                    submittedAt: detail.submittedAt,
+                    submittedBy: detail.submittedBy.name,
+                    picName: detail.picName,
+                    activityDate: detail.activityDate,
+                  });
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 text-red-600 hover:bg-red-600 hover:text-white font-semibold text-xs border border-red-200 transition-all shadow-sm"
+              >
+                <Trash2 size={14} />
+                Hapus Pengajuan Ini
+              </button>
+            )}
+            <p className="text-xs text-gray-500 font-mono">
+              {detail?.originalFilename ? `File: ${detail.originalFilename}` : ''}
+            </p>
+          </div>
           <button type="button" onClick={onClose} className="btn-secondary text-xs">
             Tutup
           </button>
@@ -980,26 +1013,23 @@ const PengajuanPage: React.FC = () => {
                       <StatusBadge status={sub.status} />
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => setViewDetailId(sub.id)}
-                          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-primary-800 transition-colors"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-sm"
                           title="Lihat Detail Rincian"
                         >
-                          <Eye size={16} />
+                          <Eye size={13} />
+                          <span>Detail</span>
                         </button>
-                        {(user?.role === 'ADMIN' ||
-                          user?.role === 'KEUANGAN' ||
-                          (user?.role === 'UNIT' &&
-                            !['DISETUJUI', 'DICAIRKAN', 'SELESAI'].includes(sub.status))) && (
-                          <button
-                            onClick={() => setDeleteSub(sub)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-                            title="Hapus Dokumen Pengajuan"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => setDeleteSub(sub)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-600 hover:text-white border border-red-200 transition-all shadow-sm"
+                          title="Hapus Dokumen Pengajuan"
+                        >
+                          <Trash2 size={13} />
+                          <span>Hapus</span>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1062,6 +1092,7 @@ const PengajuanPage: React.FC = () => {
         <DetailModal
           submissionId={viewDetailId}
           onClose={() => setViewDetailId(null)}
+          onDelete={(subToDelete) => setDeleteSub(subToDelete)}
         />
       )}
 

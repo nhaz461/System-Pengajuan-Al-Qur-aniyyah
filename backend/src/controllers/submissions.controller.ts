@@ -420,10 +420,10 @@ export const deleteSubmission = asyncHandler(async (req: AuthRequest, res: Respo
     }
   }
 
-  // Jika sudah DICAIRKAN / SELESAI, hanya Admin yang boleh hapus
-  if (['DICAIRKAN', 'SELESAI'].includes(sub.status) && req.user?.role !== 'ADMIN') {
+  // Jika sudah DICAIRKAN / SELESAI, hanya Admin atau Bendahara Keuangan yang boleh hapus
+  if (['DICAIRKAN', 'SELESAI'].includes(sub.status) && req.user?.role !== 'ADMIN' && req.user?.role !== 'KEUANGAN' && req.user?.role !== 'BENDAHARA') {
     throw createError(
-      'Pengajuan yang dananya sudah dicairkan tidak dapat dihapus. Silakan hubungi Administrator.',
+      'Pengajuan yang dananya sudah dicairkan hanya dapat dihapus oleh Bendahara atau Administrator.',
       400
     );
   }
