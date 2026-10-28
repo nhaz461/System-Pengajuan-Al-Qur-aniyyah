@@ -185,6 +185,8 @@ export async function parseSubmissionExcel(
     sat3: -1,
     jumlah: -1,
     keterangan: -1,
+    rincian: -1,
+    total: -1,
   };
 
   const maxScanRow = Math.min(sheet.rowCount || 50, 50);
@@ -212,6 +214,8 @@ export async function parseSubmissionExcel(
     let fSat3 = -1;
     let fJumlah = -1;
     let fKet = -1;
+    let fRincian = -1;
+    let fTotal = -1;
 
     for (const { col, text } of cellValues) {
       if (text === 'no' || text === 'nomor') {
@@ -223,6 +227,7 @@ export async function parseSubmissionExcel(
         text.includes('nama barang') ||
         text.includes('kebutuhan') ||
         text.includes('belanja kegiatan') ||
+        text.includes('kegiatan') ||
         text.includes('barang') ||
         text.includes('deskripsi')
       ) {
@@ -231,9 +236,12 @@ export async function parseSubmissionExcel(
         text.includes('harga satuan') ||
         text.includes('harga') ||
         text.includes('tarif') ||
-        text.includes('biaya satuan')
+        text.includes('biaya satuan') ||
+        text.includes('biaya')
       ) {
         fHarga = col;
+      } else if (text.includes('rincian')) {
+        fRincian = col;
       } else if (text.startsWith('volume 1') || text.startsWith('vol 1') || text === 'volume1' || text === 'vol1') {
         fVol1 = col;
       } else if (text.startsWith('satuan 1') || text.startsWith('sat 1') || text === 'satuan1' || text === 'sat1') {
@@ -257,20 +265,44 @@ export async function parseSubmissionExcel(
       } else if (text === 'satuan' || text.includes('satuan') || text === 'unit') {
         if (fSatuan === -1) fSatuan = col;
       } else if (
-        text.includes('jumlah') ||
-        text === 'total' ||
+        text === 'jumlah' ||
+        text.startsWith('jumlah') ||
         text.includes('total harga') ||
         text.includes('subtotal')
       ) {
         fJumlah = col;
+      } else if (text === 'total' || text.includes('total')) {
+        fTotal = col;
       } else if (text.includes('keterangan') || text === 'ket' || text.includes('catatan')) {
         fKet = col;
       }
     }
 
-    // Validasi baris header: minimal harus ada uraian dan salah satu dari harga / jumlah
-    if (fUraian !== -1 && (fHarga !== -1 || fJumlah !== -1)) {
+    if (fJumlah === -1 && fTotal !== -1) {
+      fJumlah = fTotal;
+    }
+
+    // Validasi baris header: minimal harus ada uraian dan salah satu dari harga / jumlah / rincian
+    if (fUraian !== -1 && (fHarga !== -1 || fJumlah !== -1 || fRincian !== -1)) {
       headerRowIndex = r;
+
+      // Cek apakah ada baris sub-header tepat di bawahnya (misal Row 10 ada Vol 1, Satuan 1, dll)
+      if (r < maxScanRow) {
+        const nextRow = sheet.getRow(r + 1);
+        nextRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+          const nText = normalizeHeader(cell.text || String(cell.value || ''));
+          if (nText.startsWith('volume 1') || nText.startsWith('vol 1') || nText === 'volume1' || nText === 'vol1') fVol1 = colNumber;
+          else if (nText.startsWith('satuan 1') || nText.startsWith('sat 1') || nText === 'satuan1' || nText === 'sat1') fSat1 = colNumber;
+          else if (nText.startsWith('volume 2') || nText.startsWith('vol 2') || nText === 'volume2' || nText === 'vol2') fVol2 = colNumber;
+          else if (nText.startsWith('satuan 2') || nText.startsWith('sat 2') || nText === 'satuan2' || nText === 'sat2') fSat2 = colNumber;
+          else if (nText.startsWith('volume 3') || nText.startsWith('vol 3') || nText === 'volume3' || nText === 'vol3') fVol3 = colNumber;
+          else if (nText.startsWith('satuan 3') || nText.startsWith('sat 3') || nText === 'satuan3' || nText === 'sat3') fSat3 = colNumber;
+        });
+        if (fVol1 !== -1) {
+          headerRowIndex = r + 1;
+        }
+      }
+
       colIndex = {
         no: fNo,
         kategori: fKat,
@@ -286,6 +318,8 @@ export async function parseSubmissionExcel(
         sat3: fSat3,
         jumlah: fJumlah,
         keterangan: fKet,
+        rincian: fRincian,
+        total: fTotal,
       };
       break;
     }
@@ -302,6 +336,7 @@ export async function parseSubmissionExcel(
   const items: ParsedSubmissionItem[] = [];
   let detectedTotalExcel = 0;
   let foundTotalRowInExcel = false;
+  let currentCategory = 'Umum';
 
   sheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
     if (rowNumber <= headerRowIndex) return;
@@ -313,15 +348,16 @@ export async function parseSubmissionExcel(
     });
     fullRowText = fullRowText.toLowerCase().trim();
 
-    // Deteksi baris TOTAL Excel
-    const isTotalRow =
-      fullRowText.includes('total') ||
-      fullRowText.includes('jumlah total') ||
+    // Deteksi baris TOTAL KESELURUHAN Excel
+    const isGrandTotalRow =
+      fullRowText.includes('total usulan') ||
+      fullRowText.includes('total keseluruhan') ||
       fullRowText.includes('grand total') ||
+      fullRowText.includes('jumlah total') ||
       fullRowText.includes('rekapitulasi') ||
       fullRowText.includes('jumlah keseluruhan');
 
-    if (isTotalRow) {
+    if (isGrandTotalRow) {
       // Cari nilai nominal total pada baris ini
       row.eachCell((c) => {
         const val = parseNumber(c.value);
@@ -333,13 +369,17 @@ export async function parseSubmissionExcel(
       return; // SUB-TOTAL DAN TOTAL TIDAK BOLEH DIANGGAP SEBAGAI ITEM TRANSAKSI
     }
 
+    // Ambil nomor baris jika ada
+    const noCell = colIndex.no !== -1 ? row.getCell(colIndex.no) : null;
+    const noText = (noCell?.text || String(noCell?.value || '')).trim();
+
     // Ambil teks uraian
     const uraianCell = colIndex.uraian !== -1 ? row.getCell(colIndex.uraian) : null;
-    const uraianText = (uraianCell?.text || String(uraianCell?.value || '')).trim();
+    let uraianText = (uraianCell?.text || String(uraianCell?.value || '')).trim();
 
     if (!uraianText) return;
 
-    // Filter jika diawali kata subtotal
+    // Filter jika diawali kata subtotal / total
     if (uraianText.toLowerCase().startsWith('subtotal') || uraianText.toLowerCase().startsWith('sub total')) {
       return;
     }
@@ -350,13 +390,45 @@ export async function parseSubmissionExcel(
       hargaSatuan = parseNumber(row.getCell(colIndex.hargaSatuan).value);
     }
 
-    // Ambil jumlah dari Excel
+    // Tentukan rentang kolom RINCIAN
+    const startRincianCol = colIndex.hargaSatuan !== -1 ? colIndex.hargaSatuan + 1 : colIndex.uraian + 1;
+    const endRincianCol = colIndex.jumlah !== -1 ? colIndex.jumlah - 1 : (sheet.columnCount || 13);
+
+    // Cek apakah ada angka volume di kolom rincian
+    let hasRincianNumbers = false;
+    for (let c = startRincianCol; c <= endRincianCol; c++) {
+      const cellVal = row.getCell(c).value;
+      if (parseNumber(cellVal) > 0) {
+        hasRincianNumbers = true;
+        break;
+      }
+    }
+
+    // Deteksi Header Kategori (misal: "I  ANGGARAN DANA TKA", "II  PELAKSANAAN UJIAN", atau baris romawi tanpa harga/rincian)
+    const isRomanNo = /^[IVXLCDM]+\.?$/i.test(noText);
+    const romanMatch = uraianText.match(/^([IVXLCDM]+|[A-Z])[\.\)\s\-]+(.*)/i);
+
+    if (isRomanNo || (hargaSatuan === 0 && !hasRincianNumbers && (romanMatch || noText.length === 0 || isNaN(Number(noText))))) {
+      let catName = uraianText;
+      if (romanMatch && romanMatch[2] && /^[IVXLCDM]+$/i.test(romanMatch[1])) {
+        catName = romanMatch[2].trim();
+      } else if (romanMatch && romanMatch[2] && /^[A-Z]$/i.test(romanMatch[1]) && uraianText.charAt(1) === '.') {
+        catName = romanMatch[2].trim();
+      }
+      catName = catName.replace(/^[:\-\.]+\s*/, '').trim();
+      if (catName && !catName.toLowerCase().startsWith('subtotal') && !catName.toLowerCase().startsWith('total')) {
+        currentCategory = catName;
+      }
+      return; // Baris kategori bukan item transaksi belanja
+    }
+
+    // Ambil jumlah dari Excel jika ada
     let jumlah = 0;
     if (colIndex.jumlah !== -1) {
       jumlah = parseNumber(row.getCell(colIndex.jumlah).value);
     }
 
-    // Ekstrak Keterangan Asli dari Excel
+    // Ekstrak Keterangan Asli dari Excel jika ada kolom keterangan
     let keterangan: string | null = null;
     if (colIndex.keterangan !== -1) {
       const ketText = (row.getCell(colIndex.keterangan).text || String(row.getCell(colIndex.keterangan).value || '')).trim();
@@ -365,85 +437,105 @@ export async function parseSubmissionExcel(
       }
     }
 
-    // Ekstrak data volume & satuan (Mendukung Multi-Faktor Volume 1, 2, 3)
-    const hasMultiVolCols = colIndex.vol1 !== -1 || colIndex.vol2 !== -1 || colIndex.vol3 !== -1;
+    // Ekstrak data volume & satuan (Mendukung 1, 2, hingga 3 Perkalian Faktor Sesuai Kebutuhan Unit)
     let finalVolume = 1;
     let finalSatuan = 'Item';
     let rincianVolume: string | null = null;
+    const factorList: string[] = [];
+    const factorVols: number[] = [];
 
-    if (hasMultiVolCols) {
-      const p1 = colIndex.vol1 !== -1 ? parseVolAndUnit(row.getCell(colIndex.vol1), colIndex.sat1 !== -1 ? row.getCell(colIndex.sat1) : null) : { volume: 0, satuan: '' };
+    if (colIndex.vol1 !== -1) {
+      // Menggunakan kolom teridentifikasi vol1, sat1, vol2, sat2, vol3, sat3
+      const p1 = parseVolAndUnit(row.getCell(colIndex.vol1), colIndex.sat1 !== -1 ? row.getCell(colIndex.sat1) : null);
       const p2 = colIndex.vol2 !== -1 ? parseVolAndUnit(row.getCell(colIndex.vol2), colIndex.sat2 !== -1 ? row.getCell(colIndex.sat2) : null) : { volume: 0, satuan: '' };
       const p3 = colIndex.vol3 !== -1 ? parseVolAndUnit(row.getCell(colIndex.vol3), colIndex.sat3 !== -1 ? row.getCell(colIndex.sat3) : null) : { volume: 0, satuan: '' };
 
-      const factorList: string[] = [];
-      if (p1.volume > 0) factorList.push(`${p1.volume} ${p1.satuan}`.trim());
-      if (p2.volume > 0) factorList.push(`${p2.volume} ${p2.satuan}`.trim());
-      if (p3.volume > 0) factorList.push(`${p3.volume} ${p3.satuan}`.trim());
+      if (p1.volume > 0) { factorList.push(`${p1.volume} ${p1.satuan}`.trim()); factorVols.push(p1.volume); }
+      if (p2.volume > 0) { factorList.push(`${p2.volume} ${p2.satuan}`.trim()); factorVols.push(p2.volume); }
+      if (p3.volume > 0) { factorList.push(`${p3.volume} ${p3.satuan}`.trim()); factorVols.push(p3.volume); }
 
-      if (factorList.length > 1) {
-        rincianVolume = factorList.join(' × ');
-      }
-
-      // Hitung total perkalian volume
-      const m1 = p1.volume > 0 ? p1.volume : 1;
-      const m2 = p2.volume > 0 ? p2.volume : 1;
-      const m3 = p3.volume > 0 ? p3.volume : 1;
-      const totalMultiplied = m1 * m2 * m3;
-
-      // Satuan akhir (prioritas dari faktor satuan paling kanan atau satuan 1)
       finalSatuan = p3.satuan || p2.satuan || p1.satuan || 'Item';
-
-      // Jika jumlah di Excel sudah tertera dan harga satuan ada:
-      if (jumlah > 0 && hargaSatuan > 0) {
-        const expectedCalc = totalMultiplied * hargaSatuan;
-        if (Math.abs(expectedCalc - jumlah) > 1 && totalMultiplied > 0) {
-          // Kasus bila ada perbedaan sheet (misal Penggandaan Soal di mana nominal Excel Rp 5.472.000 / Rp 250 = 21.888 lembar)
-          finalVolume = Math.round(jumlah / hargaSatuan);
-        } else {
-          finalVolume = totalMultiplied;
-        }
-      } else {
-        finalVolume = totalMultiplied;
-      }
     } else {
-      // Single volume column (Format lama)
-      let singleVol = colIndex.volume !== -1 ? parseNumber(row.getCell(colIndex.volume).value) : 0;
-      let singleSat = colIndex.satuan !== -1 ? (row.getCell(colIndex.satuan).text || String(row.getCell(colIndex.satuan).value || '')).trim() : 'Item';
-
-      // Cek apakah di keterangan ada pola perkalian seperti "16 MP x 237 Siswa x 2 Lembar"
-      if (keterangan && (keterangan.includes('×') || keterangan.includes('x') || keterangan.includes('*'))) {
-        rincianVolume = keterangan;
+      // Pindai semua sel dalam rentang RINCIAN (mendukung pola "102 buah x 5 paket", "9 mapel x 8 pertemuan x 1 bulan", "3 Org")
+      const rawCells: { val: any; text: string }[] = [];
+      for (let c = startRincianCol; c <= endRincianCol; c++) {
+        const cell = row.getCell(c);
+        const val = cell.value !== undefined ? cell.value : null;
+        const txt = String(cell.text || val || '').trim();
+        if (txt && !['x', 'X', '×', '*', '-'].includes(txt)) {
+          rawCells.push({ val, text: txt });
+        }
       }
 
-      if (jumlah > 0 && hargaSatuan > 0 && singleVol > 0 && Math.abs(singleVol * hargaSatuan - jumlah) > 1) {
-        // Jumlah di Excel lebih besar dari singleVol * hargaSatuan karena ada perkalian di formula
-        finalVolume = Math.round(jumlah / hargaSatuan);
-      } else if (singleVol > 0) {
-        finalVolume = singleVol;
-      }
+      let i = 0;
+      while (i < rawCells.length && factorList.length < 3) {
+        const item = rawCells[i];
+        const num = parseNumber(item.val);
+        const cleanDigits = item.text.replace(/[^0-9.,]/g, '').replace(',', '.');
 
-      finalSatuan = singleSat || 'Item';
+        if (num > 0 && (String(num) === cleanDigits || String(Math.floor(num)) === cleanDigits)) {
+          let unit = '';
+          if (i + 1 < rawCells.length) {
+            const nextItem = rawCells[i + 1];
+            const nextNum = parseNumber(nextItem.val);
+            if (nextNum === 0 || isNaN(Number(nextItem.text))) {
+              unit = nextItem.text;
+              i++;
+            }
+          }
+          factorList.push(`${num} ${unit}`.trim());
+          factorVols.push(num);
+          if (unit) finalSatuan = unit;
+        } else {
+          const match = item.text.match(/^([0-9.,]+)\s*(.*)$/);
+          if (match) {
+            const n = parseNumber(match[1]);
+            const u = match[2]?.trim() || '';
+            if (n > 0) {
+              factorList.push(`${n} ${u}`.trim());
+              factorVols.push(n);
+              if (u) finalSatuan = u;
+            }
+          }
+        }
+        i++;
+      }
     }
 
-    // Jika jumlah belum ada atau 0, hitung dari volume * hargaSatuan
+    if (factorVols.length > 0) {
+      rincianVolume = factorList.join(' × ');
+      const totalMultiplied = factorVols.reduce((acc, v) => acc * (v > 0 ? v : 1), 1);
+      finalVolume = totalMultiplied;
+    } else if (colIndex.volume !== -1) {
+      // Format volume tunggal lama
+      finalVolume = parseNumber(row.getCell(colIndex.volume).value) || 1;
+      if (colIndex.satuan !== -1) {
+        finalSatuan = String(row.getCell(colIndex.satuan).text || row.getCell(colIndex.satuan).value || '').trim() || 'Item';
+      }
+    }
+
+    // Jika jumlah di Excel kosong atau formula belum dievaluasi, hitung dari hargaSatuan * finalVolume
     if (jumlah === 0 && hargaSatuan > 0 && finalVolume > 0) {
-      jumlah = finalVolume * hargaSatuan;
+      jumlah = hargaSatuan * finalVolume;
     } else if (hargaSatuan === 0 && finalVolume > 0 && jumlah > 0) {
       hargaSatuan = Math.round(jumlah / finalVolume);
     }
 
-    // Abaikan jika tidak ada nominal biaya
+    // Abaikan baris jika tidak ada nominal biaya
     if (jumlah <= 0 && hargaSatuan <= 0) {
       return;
     }
 
     // Kategori
-    let kategori = 'Umum';
+    let kategori = currentCategory;
     if (colIndex.kategori !== -1) {
       const katText = (row.getCell(colIndex.kategori).text || String(row.getCell(colIndex.kategori).value || '')).trim();
       if (katText) kategori = katText;
     }
+
+    // Bersihkan penomoran awal dari uraian jika ada (misal "1. Pengadaan..." -> "Pengadaan...")
+    let cleanUraian = uraianText.replace(/^([0-9]+|[a-z])[\.\)\-]+\s*/i, '').trim();
+    if (!cleanUraian) cleanUraian = uraianText;
 
     // Keterangan gabungan yang bersih
     let finalKeterangan = keterangan;
@@ -456,7 +548,7 @@ export async function parseSubmissionExcel(
     items.push({
       no: items.length + 1,
       kategori,
-      uraian: uraianText,
+      uraian: cleanUraian,
       hargaSatuan,
       volume: finalVolume,
       satuan: finalSatuan,

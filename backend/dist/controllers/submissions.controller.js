@@ -370,9 +370,9 @@ exports.deleteSubmission = (0, error_middleware_1.asyncHandler)(async (req, res)
             throw (0, error_middleware_1.createError)(`Pengajuan dengan status ${sub.status} tidak dapat dihapus oleh Unit. Hubungi Bendahara/Admin.`, 400);
         }
     }
-    // Jika sudah DICAIRKAN / SELESAI, hanya Admin yang boleh hapus
-    if (['DICAIRKAN', 'SELESAI'].includes(sub.status) && req.user?.role !== 'ADMIN') {
-        throw (0, error_middleware_1.createError)('Pengajuan yang dananya sudah dicairkan tidak dapat dihapus. Silakan hubungi Administrator.', 400);
+    // Jika sudah DICAIRKAN / SELESAI, hanya Admin atau Bendahara Keuangan yang boleh hapus
+    if (['DICAIRKAN', 'SELESAI'].includes(sub.status) && req.user?.role !== 'ADMIN' && req.user?.role !== 'KEUANGAN' && req.user?.role !== 'BENDAHARA') {
+        throw (0, error_middleware_1.createError)('Pengajuan yang dananya sudah dicairkan hanya dapat dihapus oleh Bendahara atau Administrator.', 400);
     }
     // Jalankan transaksi penghapusan bertingkat
     await prisma_1.default.$transaction(async (tx) => {

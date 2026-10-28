@@ -374,7 +374,7 @@ const UploadModal: React.FC<UploadModalProps> = ({
                   {isReadingExcel ? 'Sedang membaca file Excel pengajuan...' : 'Klik untuk memilih file Excel Pengajuan Unit'}
                 </p>
                 <p className="text-xs text-gray-500 mt-1">
-                  Format Excel wajib memuat: <strong>No | Kategori | Uraian Barang | Harga Satuan | Volume | Satuan | Jumlah | Keterangan</strong>
+                  Format Excel terbaru: <strong>NO | URAIAN KEGIATAN | BIAYA | RINCIAN (1 s.d 3 Perkalian) | JUMLAH</strong>
                 </p>
               </div>
 
@@ -468,18 +468,16 @@ const UploadModal: React.FC<UploadModalProps> = ({
                   </button>
                 </div>
 
-                <div className="table-container border border-gray-200 rounded-xl" style={{ maxHeight: '280px' }}>
+                <div className="table-container border border-gray-200 rounded-xl" style={{ maxHeight: '320px' }}>
                   <table className="w-full table-sticky min-w-[700px] text-xs">
                     <thead>
                       <tr className="border-b border-gray-200 bg-gray-50">
                         <th className="px-3 py-2 text-left text-gray-600 font-semibold w-10">No</th>
-                        <th className="px-3 py-2 text-left text-gray-600 font-semibold w-24">Kategori</th>
-                        <th className="px-3 py-2 text-left text-gray-600 font-semibold">Uraian Barang / Belanja</th>
-                        <th className="px-3 py-2 text-right text-gray-600 font-semibold w-28">Harga Satuan</th>
-                        <th className="px-3 py-2 text-center text-gray-600 font-semibold w-16">Vol</th>
-                        <th className="px-3 py-2 text-left text-gray-600 font-semibold w-20">Satuan</th>
+                        <th className="px-3 py-2 text-left text-gray-600 font-semibold w-28">Kategori</th>
+                        <th className="px-3 py-2 text-left text-gray-600 font-semibold">Uraian Kegiatan</th>
+                        <th className="px-3 py-2 text-right text-gray-600 font-semibold w-28">Biaya Satuan</th>
+                        <th className="px-3 py-2 text-center text-gray-600 font-semibold w-48">Rincian Perkalian</th>
                         <th className="px-3 py-2 text-right text-gray-600 font-semibold w-28">Jumlah</th>
-                        <th className="px-3 py-2 text-left text-gray-600 font-semibold w-36">Keterangan</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -487,27 +485,20 @@ const UploadModal: React.FC<UploadModalProps> = ({
                         <tr key={it.no} className="hover:bg-gray-50">
                           <td className="px-3 py-2 text-gray-400">{it.no}</td>
                           <td className="px-3 py-2">
-                            <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-700">
+                            <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-primary-50 text-primary-800">
                               {it.kategori}
                             </span>
                           </td>
-                          <td className="px-3 py-2 font-medium text-gray-900">
-                            <div>{it.uraian}</div>
-                            {it.rincianVolume && (
-                              <div className="mt-0.5">
-                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                                  Perkalian: {it.rincianVolume}
-                                </span>
-                              </div>
-                            )}
+                          <td className="px-3 py-2 font-medium text-gray-900">{it.uraian}</td>
+                          <td className="px-3 py-2 text-right text-gray-700 font-mono">{formatRupiah(it.hargaSatuan)}</td>
+                          <td className="px-3 py-2 text-center">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm">
+                              {it.rincianVolume || `${it.volume} ${it.satuan}`}
+                            </span>
                           </td>
-                          <td className="px-3 py-2 text-right text-gray-700">{formatRupiah(it.hargaSatuan)}</td>
-                          <td className="px-3 py-2 text-center text-gray-800 font-bold">{it.volume.toLocaleString('id-ID')}</td>
-                          <td className="px-3 py-2 text-gray-600">{it.satuan}</td>
-                          <td className="px-3 py-2 text-right font-semibold text-primary-800">
+                          <td className="px-3 py-2 text-right font-bold text-primary-800 font-mono">
                             {formatRupiah(it.jumlah)}
                           </td>
-                          <td className="px-3 py-2 text-gray-500 truncate max-w-xs">{it.keterangan || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -660,34 +651,41 @@ const DetailModal: React.FC<DetailModalProps> = ({ submissionId, onClose, onDele
                     <thead>
                       <tr className="border-b border-gray-200 bg-gray-50">
                         <th className="px-3 py-2 text-left text-gray-600 font-semibold w-10">No</th>
-                        <th className="px-3 py-2 text-left text-gray-600 font-semibold w-24">Kategori</th>
-                        <th className="px-3 py-2 text-left text-gray-600 font-semibold">Uraian Belanja</th>
-                        <th className="px-3 py-2 text-right text-gray-600 font-semibold w-28">Harga Satuan</th>
-                        <th className="px-3 py-2 text-center text-gray-600 font-semibold w-16">Vol</th>
-                        <th className="px-3 py-2 text-left text-gray-600 font-semibold w-20">Satuan</th>
+                        <th className="px-3 py-2 text-left text-gray-600 font-semibold w-28">Kategori</th>
+                        <th className="px-3 py-2 text-left text-gray-600 font-semibold">Uraian Kegiatan</th>
+                        <th className="px-3 py-2 text-right text-gray-600 font-semibold w-28">Biaya Satuan</th>
+                        <th className="px-3 py-2 text-center text-gray-600 font-semibold w-48">Rincian Perkalian</th>
                         <th className="px-3 py-2 text-right text-gray-600 font-semibold w-28">Jumlah</th>
-                        <th className="px-3 py-2 text-left text-gray-600 font-semibold w-36">Keterangan</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {detail.items.map((it) => (
-                        <tr key={it.id} className="hover:bg-gray-50">
-                          <td className="px-3 py-2 text-gray-400">{it.itemNumber}</td>
-                          <td className="px-3 py-2">
-                            <span className="px-1.5 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-700">
-                              {it.kategori}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2 font-medium text-gray-900">{it.uraian}</td>
-                          <td className="px-3 py-2 text-right text-gray-700">{formatRupiah(it.originalPrice)}</td>
-                          <td className="px-3 py-2 text-center text-gray-700">{it.volume}</td>
-                          <td className="px-3 py-2 text-gray-600">{it.satuan}</td>
-                          <td className="px-3 py-2 text-right font-bold text-primary-800">
-                            {formatRupiah(it.jumlah)}
-                          </td>
-                          <td className="px-3 py-2 text-gray-500">{it.keterangan || '-'}</td>
-                        </tr>
-                      ))}
+                      {detail.items.map((it) => {
+                        const rincianText = it.keterangan?.includes('•')
+                          ? it.keterangan.split('•')[0].trim()
+                          : (it.keterangan?.includes('×') || it.keterangan?.includes('x'))
+                            ? it.keterangan
+                            : `${it.volume} ${it.satuan}`;
+                        return (
+                          <tr key={it.id} className="hover:bg-gray-50">
+                            <td className="px-3 py-2 text-gray-400">{it.itemNumber}</td>
+                            <td className="px-3 py-2">
+                              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-primary-50 text-primary-800">
+                                {it.kategori}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 font-medium text-gray-900">{it.uraian}</td>
+                            <td className="px-3 py-2 text-right text-gray-700 font-mono">{formatRupiah(it.originalPrice)}</td>
+                            <td className="px-3 py-2 text-center">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md font-mono text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm">
+                                {rincianText}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-right font-bold text-primary-800 font-mono">
+                              {formatRupiah(it.jumlah)}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
