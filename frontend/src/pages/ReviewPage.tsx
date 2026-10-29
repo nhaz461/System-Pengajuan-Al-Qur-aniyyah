@@ -81,39 +81,55 @@ interface FactorItem {
   unit: string;
 }
 
-function parseFactors(text: string | null | undefined): FactorItem[] | null {
-  if (!text) return null;
-  if (!text.includes('×') && !text.includes('x') && !text.includes('*')) return null;
+function parseFactors(text: string | null | undefined, defaultVol?: number, defaultUnit?: string): FactorItem[] {
+  const result: FactorItem[] = [];
 
-  // Hapus prefix seperti "Disetujui:" atau "Perkalian:" dan abaikan catatan tambahan di dalam kurung
-  const clean = text.replace(/^(Disetujui|Perkalian)\s*:\s*/i, '').split('(')[0].trim();
-  const rawParts = clean.split(/[×x*]/).map((p) => p.trim()).filter(Boolean);
+  if (text && (text.includes('×') || text.includes('x') || text.includes('*'))) {
+    const clean = text.replace(/^(Disetujui|Perkalian)\s*:\s*/i, '').split('(')[0].trim();
+    const rawParts = clean.split(/[×x*]/).map((p) => p.trim()).filter(Boolean);
 
-  if (rawParts.length < 2) return null;
-
-  const factors: FactorItem[] = [];
-  for (let i = 0; i < rawParts.length; i++) {
-    const part = rawParts[i];
-    const match = part.match(/^([\d.,]+)\s*(.*)$/) || part.match(/^(.*?)\s*([\d.,]+)$/);
-    if (match) {
-      let numStr = match[1];
-      let unitStr = match[2];
-      if (isNaN(parseFloat(numStr.replace(/,/g, '.')))) {
-        numStr = match[2];
-        unitStr = match[1];
-      }
-      const val = parseFloat(numStr.replace(/,/g, '.'));
-      if (!isNaN(val) && val > 0) {
-        factors.push({
-          id: i + 1,
-          val,
-          unit: unitStr.trim() || `Faktor ${i + 1}`,
-        });
+    for (let i = 0; i < Math.min(rawParts.length, 3); i++) {
+      const part = rawParts[i];
+      const match = part.match(/^([\d.,]+)\s*(.*)$/) || part.match(/^(.*?)\s*([\d.,]+)$/);
+      if (match) {
+        let numStr = match[1];
+        let unitStr = match[2];
+        if (isNaN(parseFloat(numStr.replace(/,/g, '.')))) {
+          numStr = match[2];
+          unitStr = match[1];
+        }
+        const val = parseFloat(numStr.replace(/,/g, '.'));
+        if (!isNaN(val) && val > 0) {
+          result.push({
+            id: i + 1,
+            val,
+            unit: unitStr.trim() || `Satuan ${i + 1}`,
+          });
+        }
       }
     }
   }
 
-  return factors.length >= 2 ? factors : null;
+  // Jika belum ada faktor (misal volume tunggal), gunakan defaultVol dan defaultUnit
+  if (result.length === 0) {
+    result.push({
+      id: 1,
+      val: defaultVol && defaultVol > 0 ? defaultVol : 1,
+      unit: defaultUnit || 'Item',
+    });
+  }
+
+  // Selalu sediakan 3 slot faktor sehingga reviewer bisa mengisi/mengubah faktor 2 & 3
+  while (result.length < 3) {
+    const nextId = result.length + 1;
+    result.push({
+      id: nextId,
+      val: 0,
+      unit: '',
+    });
+  }
+
+  return result;
 }
 
 // ─── Inline Editable Item Row (Section L) ──────────────────────
@@ -135,12 +151,14 @@ const InlineItemRow: React.FC<ItemRowProps> = ({ item, idx, onItemUpdated, onOpe
   const [isSaving, setIsSaving] = useState(false);
 
   // Parse faktor perkalian awal dari pengajuan asli (keterangan)
-  const initialFactors = useMemo(() => parseFactors(item.keterangan), [item.keterangan]);
+  const initialFactors = useMemo(
+    () => parseFactors(item.keterangan, item.volume, item.satuan),
+    [item.keterangan, item.volume, item.satuan]
+  );
 
-  // Faktor aktif yang sedang diedit (bisa tersimpan di reviewNote atau dari pengajuan awal)
-  const [factors, setFactors] = useState<FactorItem[] | null>(() => {
-    const fromNote = parseFactors(item.reviewNote);
-    return fromNote || initialFactors;
+  // Faktor aktif yang sedang diedit
+  const [factors, setFactors] = useState<FactorItem[]>(() => {
+    return parseFactors(item.reviewNote || item.keterangan, item.volume, item.satuan);
   });
 
   // Sync internal state jika data item diperbarui
@@ -152,9 +170,7 @@ const InlineItemRow: React.FC<ItemRowProps> = ({ item, idx, onItemUpdated, onOpe
     );
     setVolume(String(item.volume));
     setReviewNote(item.reviewNote || '');
-
-    const fromNote = parseFactors(item.reviewNote);
-    setFactors(fromNote || parseFactors(item.keterangan));
+    setFactors(parseFactors(item.reviewNote || item.keterangan, item.volume, item.satuan));
   }, [item]);
 
   const saveChanges = async (
@@ -215,53 +231,34 @@ const InlineItemRow: React.FC<ItemRowProps> = ({ item, idx, onItemUpdated, onOpe
     toast.success('Harga review dikembalikan ke harga pengajuan asli.');
   };
 
-  // Handler saat reviewer mengubah salah satu faktor perkalian (Baris 1, 2, atau 3)
+  // Handler saat reviewer mengubah salah satu faktor perkalian (Faktor 1, 2, atau 3)
   const handleFactorChange = (fIdx: number, valStr: string) => {
-    if (!factors) return;
     const num = parseFloat(valStr);
     const updated = factors.map((f, i) => (i === fIdx ? { ...f, val: isNaN(num) ? 0 : num } : f));
     setFactors(updated);
 
-    const totalV = updated.reduce((acc, curr) => acc * (curr.val > 0 ? curr.val : 1), 1);
+    const activeVols = updated.filter((f) => f.val > 0).map((f) => f.val);
+    const totalV = activeVols.length > 0 ? activeVols.reduce((acc, curr) => acc * curr, 1) : 1;
     setVolume(String(totalV));
+  };
+
+  const handleFactorUnitChange = (fIdx: number, unitStr: string) => {
+    const updated = factors.map((f, i) => (i === fIdx ? { ...f, unit: unitStr } : f));
+    setFactors(updated);
   };
 
   const handleFactorBlur = () => {
-    if (!factors) return;
-    const validFactors = factors.map((f) => ({ ...f, val: f.val > 0 ? f.val : 1 }));
-    setFactors(validFactors);
-    const totalV = validFactors.reduce((acc, curr) => acc * curr.val, 1);
+    const active = factors.filter((f) => f.val > 0);
+    const totalV = active.length > 0 ? active.reduce((acc, curr) => acc * curr.val, 1) : 1;
     setVolume(String(totalV));
 
-    const factorStr = validFactors.map((f) => `${f.val} ${f.unit}`).join(' × ');
-    const initialFactorStr = initialFactors?.map((f) => `${f.val} ${f.unit}`).join(' × ');
-
-    let newNote = reviewNote;
-    if (factorStr !== initialFactorStr) {
-      newNote = `Disetujui: ${factorStr}`;
-      setReviewNote(newNote);
-    } else if (newNote.startsWith('Disetujui:')) {
-      newNote = '';
-      setReviewNote('');
-    }
-
-    saveChanges(undefined, newNote, String(totalV));
-  };
-
-  const handleResetFactors = () => {
-    if (!initialFactors) return;
-    setFactors(initialFactors);
-    const totalV = initialFactors.reduce((acc, curr) => acc * curr.val, 1);
-    setVolume(String(totalV));
-    const newNote = reviewNote.startsWith('Disetujui:') ? '' : reviewNote;
-    setReviewNote(newNote);
-    saveChanges(undefined, newNote, String(totalV));
-    toast.success('Faktor volume dikembalikan ke pengajuan awal.');
+    const factorStr = active.map((f) => `${f.val} ${f.unit}`.trim()).join(' × ');
+    saveChanges(undefined, undefined, String(totalV), factorStr);
   };
 
   const isFactorModified = useMemo(() => {
-    if (!factors || !initialFactors || factors.length !== initialFactors.length) return false;
-    return factors.some((f, i) => f.val !== initialFactors[i].val);
+    if (!factors || !initialFactors) return false;
+    return factors.some((f, i) => f.val !== initialFactors[i]?.val || f.unit !== initialFactors[i]?.unit);
   }, [factors, initialFactors]);
 
   // Kalkulasi total review real-time
@@ -269,10 +266,11 @@ const InlineItemRow: React.FC<ItemRowProps> = ({ item, idx, onItemUpdated, onOpe
     reviewPrice.trim() !== ''
       ? parseFloat(reviewPrice.replace(/[^0-9.]/g, '')) || 0
       : item.originalPrice;
+  const activeFactors = factors.filter((f) => f.val > 0);
   const currentVol =
-    volume.trim() !== '' && !isNaN(parseFloat(volume))
-      ? parseFloat(volume)
-      : item.volume;
+    activeFactors.length > 0
+      ? activeFactors.reduce((acc, curr) => acc * curr.val, 1)
+      : parseFloat(volume) || item.volume || 1;
   const currentTotalReview = currentVol * currentEffPrice;
 
   // Status visual real-time
@@ -287,7 +285,7 @@ const InlineItemRow: React.FC<ItemRowProps> = ({ item, idx, onItemUpdated, onOpe
 
   const isExceeding = currentStatus === 'MELEBIHI_SSH';
   const hasPriceChanged = reviewPrice.trim() !== '' && parseFloat(reviewPrice) !== item.originalPrice;
-  const hasVolumeChanged = volume.trim() !== '' && parseFloat(volume) !== item.volume;
+  const hasVolumeChanged = currentVol !== item.volume;
   const hasChanged = hasPriceChanged || hasVolumeChanged || isFactorModified;
 
   return (
@@ -427,119 +425,100 @@ const InlineItemRow: React.FC<ItemRowProps> = ({ item, idx, onItemUpdated, onOpe
         </div>
       </td>
 
-      {/* ── VOLUME REVIEW (3 BARIS FAKTOR / SINGLE VOL) ── */}
-      <td className="px-2 py-3 text-center">
-        {factors && factors.length >= 2 ? (
-          <div className="bg-slate-50/90 border border-slate-200/90 rounded-lg p-2 min-w-[185px] text-left shadow-2xs space-y-1.5">
-            <div className="flex items-center justify-between text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-              <span className="flex items-center gap-1 text-[#1B4332]">
-                <Calculator size={11} /> {factors.length} Baris Faktor:
-              </span>
-              {isFactorModified && (
-                <button
-                  type="button"
-                  onClick={handleResetFactors}
-                  className="text-[10px] text-primary-800 hover:text-primary-950 underline font-semibold"
-                  title="Kembalikan semua faktor ke pengajuan awal"
-                >
-                  Reset
-                </button>
-              )}
-            </div>
-
-            {/* Render Baris Faktor Perkalian (Baris 1, 2, 3) */}
-            <div className="space-y-1">
-              {factors.map((f, fIdx) => {
-                const origVal = initialFactors?.[fIdx]?.val;
-                const isFModified = origVal !== undefined && f.val !== origVal;
-                return (
-                  <div key={f.id} className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-mono text-slate-400 w-3 text-right">
-                      {fIdx + 1}.
-                    </span>
-                    <input
-                      type="number"
-                      min="0.01"
-                      step="any"
-                      value={f.val}
-                      onChange={(e) => handleFactorChange(fIdx, e.target.value)}
-                      onBlur={handleFactorBlur}
-                      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-                      className={`w-14 text-center py-0.5 px-1 text-xs font-mono font-bold rounded border transition-all ${
-                        isFModified
-                          ? 'border-blue-500 bg-blue-50 text-blue-900 ring-1 ring-blue-300'
-                          : 'border-slate-300 bg-white text-slate-900 focus:border-primary-500'
-                      }`}
-                      title={`Ubah faktor ${f.unit} (Awal: ${origVal})`}
-                    />
-                    <span
-                      className="text-[11px] font-medium text-slate-700 truncate max-w-[75px]"
-                      title={f.unit}
-                    >
-                      {f.unit}
-                    </span>
-                    {isFModified && (
-                      <span className="text-[9px] text-blue-600 font-mono ml-auto">
-                        (Awal: {origVal})
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Total Volume Hasil Perkalian */}
-            <div className="pt-1 border-t border-slate-200 flex items-center justify-between text-xs">
-              <span className="text-[10px] text-slate-500 font-medium">Total Vol:</span>
-              <span
-                className={`font-mono font-bold text-xs ${
-                  isFactorModified ? 'text-blue-900' : 'text-[#1B4332]'
-                }`}
-              >
-                {new Intl.NumberFormat('id-ID').format(currentVol)} {item.satuan}
-              </span>
-            </div>
-          </div>
-        ) : (
-          /* Single Volume (Barang Biasa 1 Volume) */
-          <div className="flex flex-col items-center gap-1">
-            <input
-              type="number"
-              min="0.01"
-              step="any"
-              value={volume}
-              onChange={(e) => setVolume(e.target.value)}
-              onBlur={() => saveChanges()}
-              onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-              className={`w-16 text-center py-1 px-1.5 text-xs font-mono font-bold rounded-lg border transition-all ${
-                hasVolumeChanged
-                  ? 'border-blue-400 bg-blue-50/50 text-blue-900 focus:ring-blue-400'
-                  : 'border-gray-300 bg-white text-gray-900 focus:ring-primary-500'
-              }`}
-              title="Ubah volume yang disetujui jika disesuaikan"
-            />
-            {hasVolumeChanged && (
-              <span className="text-[9px] text-blue-600 font-mono">
-                (Awal: {item.volume})
-              </span>
-            )}
-          </div>
-        )}
+      {/* ── FAKTOR 1 (VOL 1 & SATUAN 1) ── */}
+      <td className="px-1.5 py-3 text-center bg-emerald-50/15">
+        <div className="flex items-center justify-center gap-1">
+          <input
+            type="number"
+            min="0"
+            step="any"
+            value={factors[0]?.val > 0 ? factors[0].val : ''}
+            onChange={(e) => handleFactorChange(0, e.target.value)}
+            onBlur={handleFactorBlur}
+            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            placeholder="Vol 1"
+            className="w-14 text-center py-1 px-1 text-xs font-mono font-bold rounded border border-slate-300 bg-white text-slate-900 focus:border-primary-500 shadow-2xs"
+            title="Volume 1 (misal: orang, mapel, siswa)"
+          />
+          <input
+            type="text"
+            value={factors[0]?.unit || ''}
+            onChange={(e) => handleFactorUnitChange(0, e.target.value)}
+            onBlur={handleFactorBlur}
+            placeholder="Satuan 1"
+            className="w-14 py-1 px-1 text-[11px] font-medium text-slate-700 rounded border border-slate-200 bg-white shadow-2xs text-center"
+            title="Satuan 1"
+          />
+        </div>
       </td>
 
-      {/* Satuan */}
-      <td className="px-3 py-3 text-xs text-gray-600">{item.satuan}</td>
+      {/* ── FAKTOR 2 (VOL 2 & SATUAN 2) ── */}
+      <td className="px-1.5 py-3 text-center bg-emerald-50/15">
+        <div className="flex items-center justify-center gap-1">
+          <span className="text-[10px] text-gray-400 font-bold">×</span>
+          <input
+            type="number"
+            min="0"
+            step="any"
+            value={factors[1]?.val > 0 ? factors[1].val : ''}
+            onChange={(e) => handleFactorChange(1, e.target.value)}
+            onBlur={handleFactorBlur}
+            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            placeholder="-"
+            className="w-12 text-center py-1 px-1 text-xs font-mono font-bold rounded border border-slate-300 bg-white text-slate-900 focus:border-primary-500 shadow-2xs"
+            title="Volume 2 (Opsional, misal: paket, pertemuan, kegiatan)"
+          />
+          <input
+            type="text"
+            value={factors[1]?.unit || ''}
+            onChange={(e) => handleFactorUnitChange(1, e.target.value)}
+            onBlur={handleFactorBlur}
+            placeholder="Sat 2"
+            className="w-14 py-1 px-1 text-[11px] font-medium text-slate-700 rounded border border-slate-200 bg-white shadow-2xs text-center"
+            title="Satuan 2"
+          />
+        </div>
+      </td>
+
+      {/* ── FAKTOR 3 (VOL 3 & SATUAN 3) ── */}
+      <td className="px-1.5 py-3 text-center bg-emerald-50/15 border-r border-emerald-100">
+        <div className="flex items-center justify-center gap-1">
+          <span className="text-[10px] text-gray-400 font-bold">×</span>
+          <input
+            type="number"
+            min="0"
+            step="any"
+            value={factors[2]?.val > 0 ? factors[2].val : ''}
+            onChange={(e) => handleFactorChange(2, e.target.value)}
+            onBlur={handleFactorBlur}
+            onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+            placeholder="-"
+            className="w-12 text-center py-1 px-1 text-xs font-mono font-bold rounded border border-slate-300 bg-white text-slate-900 focus:border-primary-500 shadow-2xs"
+            title="Volume 3 (Opsional, misal: bulan, hari, sesi)"
+          />
+          <input
+            type="text"
+            value={factors[2]?.unit || ''}
+            onChange={(e) => handleFactorUnitChange(2, e.target.value)}
+            onBlur={handleFactorBlur}
+            placeholder="Sat 3"
+            className="w-14 py-1 px-1 text-[11px] font-medium text-slate-700 rounded border border-slate-200 bg-white shadow-2xs text-center"
+            title="Satuan 3"
+          />
+        </div>
+      </td>
 
       {/* Total Review (Volume * Effective Price) */}
       <td className="px-3 py-3 text-right">
         <p className="font-mono text-xs font-bold text-gray-900">
           {formatRupiah(currentTotalReview)}
         </p>
-        {hasChanged && (
-          <p className="text-[10px] text-green-700 font-medium">
-            {currentTotalReview < (item.volume * item.originalPrice)
-              ? `Hemat ${formatRupiah((item.volume * item.originalPrice) - currentTotalReview)}`
-              : null}
+        <span className="text-[10px] text-gray-500 font-mono block">
+          (= {new Intl.NumberFormat('id-ID').format(currentVol)} {factors.find((f) => f.val > 0 && f.unit)?.unit || item.satuan})
+        </span>
+        {hasChanged && currentTotalReview < item.volume * item.originalPrice && (
+          <p className="text-[10px] text-emerald-700 font-medium">
+            Hemat {formatRupiah(item.volume * item.originalPrice - currentTotalReview)}
           </p>
         )}
       </td>
@@ -1383,21 +1362,26 @@ const ReviewPage: React.FC = () => {
           <div className="table-container" style={{ maxHeight: '650px' }}>
             <table className="w-full table-sticky min-w-[1100px] text-xs">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-100/80 text-gray-700 font-semibold uppercase tracking-wider">
-                  <th className="px-3 py-3 text-left w-10">No</th>
-                  <th className="px-3 py-3 text-left">Uraian Barang / Belanja Kegiatan</th>
-                  <th className="px-3 py-3 text-right w-28">Harga Pengajuan</th>
-                  <th className="px-3 py-3 text-right w-28">Harga SSH</th>
-                  <th className="px-3 py-3 text-left w-44 bg-primary-50/50 text-primary-900 border-x border-primary-100">
+                <tr className="border-b border-gray-200 bg-gray-100/80 text-gray-700 font-semibold uppercase tracking-wider text-[11px]">
+                  <th className="px-3 py-3 text-left w-8">No</th>
+                  <th className="px-3 py-3 text-left min-w-[200px]">Uraian Barang / Belanja Kegiatan</th>
+                  <th className="px-3 py-3 text-right w-24">Harga Pengajuan</th>
+                  <th className="px-3 py-3 text-right w-24">Harga SSH</th>
+                  <th className="px-3 py-3 text-left w-36 bg-primary-50/50 text-primary-900 border-x border-primary-100">
                     Harga Review (Inline)
                   </th>
-                  <th className="px-3 py-3 text-center min-w-[195px] bg-primary-50/50 text-primary-900 border-r border-primary-100">
-                    Vol (Review)
+                  <th className="px-2 py-3 text-center w-32 bg-emerald-50/40 text-emerald-900">
+                    Vol (Review) 1 & Satuan 1
                   </th>
-                  <th className="px-3 py-3 text-left w-16">Satuan</th>
+                  <th className="px-2 py-3 text-center w-32 bg-emerald-50/40 text-emerald-900">
+                    Vol (Review) 2 & Satuan 2
+                  </th>
+                  <th className="px-2 py-3 text-center w-32 bg-emerald-50/40 text-emerald-900 border-r border-emerald-100">
+                    Vol (Review) 3 & Satuan 3
+                  </th>
                   <th className="px-3 py-3 text-right w-32">Total Review</th>
-                  <th className="px-3 py-3 text-left w-36">Status SSH</th>
-                  <th className="px-3 py-3 text-left w-44">Catatan Reviewer</th>
+                  <th className="px-3 py-3 text-left w-28">Status SSH</th>
+                  <th className="px-3 py-3 text-left min-w-[140px]">Catatan Reviewer</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
