@@ -2,6 +2,11 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "frontend/dist",
+  "functions": {
+    "api/index.js": {
+      "includeFiles": "{backend/dist/**,backend/node_modules/.prisma/client/**,backend/node_modules/@prisma/client/**,Template_Pengajuan_Resmi_Yayasan.xlsx}"
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
