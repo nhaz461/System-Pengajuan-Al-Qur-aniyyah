@@ -185,9 +185,15 @@ const UploadModal: React.FC<UploadModalProps> = ({
         toast.success(res.message || 'Pengajuan anggaran berhasil disimpan.');
         onSuccess();
         onClose();
+      } else {
+        const msg = res.message || 'Gagal menyimpan pengajuan.';
+        setError(msg);
+        toast.error(msg);
       }
     } catch (err) {
-      setError(getErrorMessage(err));
+      const errMsg = getErrorMessage(err);
+      setError(errMsg);
+      toast.error(errMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -509,6 +515,12 @@ const UploadModal: React.FC<UploadModalProps> = ({
           )}
 
           {/* Modal Footer */}
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 flex items-center gap-2">
+              <AlertCircle size={16} className="text-red-600 flex-shrink-0" />
+              <span className="font-medium">{error}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between pt-4 border-t border-gray-200">
             <button
               type="button"

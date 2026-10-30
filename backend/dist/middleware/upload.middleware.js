@@ -7,10 +7,14 @@ exports.uploadReceipt = exports.uploadExcel = void 0;
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
 const fs_1 = __importDefault(require("fs"));
-const uploadDir = path_1.default.resolve(__dirname, '../../../uploads');
-if (!fs_1.default.existsSync(uploadDir)) {
-    fs_1.default.mkdirSync(uploadDir, { recursive: true });
+const isVercel = !!process.env.VERCEL;
+const uploadDir = isVercel ? '/tmp' : path_1.default.resolve(__dirname, '../../../uploads');
+try {
+    if (!fs_1.default.existsSync(uploadDir)) {
+        fs_1.default.mkdirSync(uploadDir, { recursive: true });
+    }
 }
+catch (_) { }
 const storage = multer_1.default.diskStorage({
     destination: (_req, _file, cb) => {
         cb(null, uploadDir);

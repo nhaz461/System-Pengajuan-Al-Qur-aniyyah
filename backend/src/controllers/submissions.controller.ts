@@ -141,23 +141,30 @@ export const createSubmission = asyncHandler(async (req: AuthRequest, res: Respo
     submissionNumber = `${prefix}${String(nextSeq).padStart(4, '0')}`;
   }
 
-  // Pindahkan file permanent ke folder uploads/pengajuan/
+  // Pindahkan file permanent ke folder uploads/pengajuan/ (Safe untuk Vercel / Cloud)
   let permanentFilePath: string | null = null;
   if (tempFilePath && fs.existsSync(tempFilePath)) {
-    const permDir = path.resolve(__dirname, '../../../uploads/pengajuan');
-    if (!fs.existsSync(permDir)) {
-      fs.mkdirSync(permDir, { recursive: true });
-    }
-    const safeExt = path.extname(tempFilePath) || '.xlsx';
-    const targetFile = path.join(
-      permDir,
-      `${submissionNumber.replace(/[\/\\]/g, '_')}_${Date.now()}${safeExt}`
-    );
     try {
+      const isVercel = !!process.env.VERCEL;
+      const permDir = isVercel
+        ? path.join('/tmp', 'uploads', 'pengajuan')
+        : path.resolve(__dirname, '../../../uploads/pengajuan');
+
+      if (!fs.existsSync(permDir)) {
+        fs.mkdirSync(permDir, { recursive: true });
+      }
+      const safeExt = path.extname(tempFilePath) || '.xlsx';
+      const targetFile = path.join(
+        permDir,
+        `${submissionNumber.replace(/[\/\\]/g, '_')}_${Date.now()}${safeExt}`
+      );
       fs.copyFileSync(tempFilePath, targetFile);
-      fs.unlinkSync(tempFilePath);
+      try {
+        fs.unlinkSync(tempFilePath);
+      } catch (_) {}
       permanentFilePath = targetFile;
-    } catch (_) {
+    } catch (fileErr) {
+      console.warn('Gagal memindahkan file upload pengajuan:', fileErr);
       permanentFilePath = tempFilePath;
     }
   }
