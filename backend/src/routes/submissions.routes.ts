@@ -6,6 +6,8 @@ import {
   getSubmissionDetail,
   downloadSubmissionTemplate,
   deleteSubmission,
+  updateSubmissionWorkflowStatus,
+  updateSubmission,
 } from '../controllers/submissions.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { uploadExcel } from '../middleware/upload.middleware';
@@ -28,6 +30,12 @@ router.post('/', createSubmission);
 
 // Detail pengajuan
 router.get('/:id', getSubmissionDetail);
+
+// Update seluruh pengajuan / revisi dari unit
+router.put('/:id', updateSubmission);
+
+// Update status workflow pengajuan (Revisi, Evaluasi Selesai, Kirim, Cairkan, Batal)
+router.patch('/:id/workflow-status', updateSubmissionWorkflowStatus);
 
 // Hapus pengajuan
 router.delete('/:id', deleteSubmission);

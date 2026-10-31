@@ -7,19 +7,12 @@ import ErrorBoundary from './components/ErrorBoundary';
 // Pages
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
-import MasterUnitPage from './pages/MasterUnitPage';
-import MasterKegiatanPage from './pages/MasterKegiatanPage';
-import TahunAnggaranPage from './pages/TahunAnggaranPage';
-import MasterSshPage from './pages/MasterSshPage';
-import PengajuanPage from './pages/PengajuanPage';
+import PengajuanUnitPage from './pages/PengajuanUnitPage';
+import DraftPengajuanPage from './pages/DraftPengajuanPage';
 import ReviewPage from './pages/ReviewPage';
-import ApprovalPage from './pages/ApprovalPage';
-import PencairanPage from './pages/PencairanPage';
-import RealisasiPage from './pages/RealisasiPage';
-import BackupPage from './pages/BackupPage';
-import {
-  PengaturanPage,
-} from './pages/PlaceholderPages';
+import DraftPencairanPage from './pages/DraftPencairanPage';
+import MasterSshPage from './pages/MasterSshPage';
+import PengaturanPage from './pages/PengaturanPage';
 
 // ─── Protected Route ─────────────────────────────────────────
 const ProtectedRoute: React.FC<{ children: React.ReactNode; roles?: string[] }> = ({
@@ -69,13 +62,19 @@ const AppRoutes: React.FC = () => {
 
   return (
     <Routes>
-      {/* Public */}
+      {/* ── Public Routes (Dapat diakses langsung oleh Unit tanpa login Bendahara) ── */}
+      <Route
+        path="/portal-unit"
+        element={<PengajuanUnitPage isStandalone={true} />}
+      />
+
       <Route
         path="/login"
         element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage />}
       />
 
-      {/* Protected */}
+      {/* ── 7 Menu Utama Sistem Baru ── */}
+      {/* 1. Dashboard */}
       <Route
         path="/"
         element={
@@ -87,104 +86,88 @@ const AppRoutes: React.FC = () => {
         }
       />
 
+      {/* 2. Pengajuan Unit */}
       <Route
-        path="/pengajuan/*"
+        path="/pengajuan-unit"
         element={
           <ProtectedRoute>
-            <AppLayout><PengajuanPage /></AppLayout>
+            <AppLayout>
+              <PengajuanUnitPage />
+            </AppLayout>
           </ProtectedRoute>
         }
       />
 
+      {/* 3. Draft Pengajuan */}
       <Route
-        path="/review/*"
-        element={
-          <ProtectedRoute roles={['ADMIN', 'KEUANGAN']}>
-            <AppLayout><ReviewPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/persetujuan/*"
-        element={
-          <ProtectedRoute roles={['ADMIN', 'PIMPINAN']}>
-            <AppLayout><ApprovalPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/pencairan/*"
-        element={
-          <ProtectedRoute roles={['ADMIN', 'KEUANGAN']}>
-            <AppLayout><PencairanPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/realisasi/*"
+        path="/draft-pengajuan"
         element={
           <ProtectedRoute>
-            <AppLayout><RealisasiPage /></AppLayout>
+            <AppLayout>
+              <DraftPengajuanPage />
+            </AppLayout>
           </ProtectedRoute>
         }
       />
 
+      {/* 4. Evaluasi Keuangan (Bendahara Umum) */}
       <Route
-        path="/master-ssh/*"
-        element={
-          <ProtectedRoute roles={['ADMIN', 'KEUANGAN']}>
-            <AppLayout><MasterSshPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/master-unit/*"
-        element={
-          <ProtectedRoute roles={['ADMIN']}>
-            <AppLayout><MasterUnitPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/master-kegiatan/*"
-        element={
-          <ProtectedRoute roles={['ADMIN']}>
-            <AppLayout><MasterKegiatanPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/tahun-anggaran/*"
-        element={
-          <ProtectedRoute roles={['ADMIN']}>
-            <AppLayout><TahunAnggaranPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/backup/*"
-        element={
-          <ProtectedRoute roles={['ADMIN']}>
-            <AppLayout><BackupPage /></AppLayout>
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/pengaturan/*"
+        path="/evaluasi"
         element={
           <ProtectedRoute>
-            <AppLayout><PengaturanPage /></AppLayout>
+            <AppLayout>
+              <ReviewPage />
+            </AppLayout>
           </ProtectedRoute>
         }
       />
+
+      {/* 5. Draft Pencairan (SPPD & Eksekusi Pembayaran) */}
+      <Route
+        path="/draft-pencairan"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <DraftPencairanPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 6. Master SSH 2026 */}
+      <Route
+        path="/master-ssh"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <MasterSshPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* 7. Pengaturan Sistem & Master Data */}
+      <Route
+        path="/pengaturan"
+        element={
+          <ProtectedRoute>
+            <AppLayout>
+              <PengaturanPage />
+            </AppLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ── Backward Compatibility Redirects (Alur Lama -> Alur Baru) ── */}
+      <Route path="/pengajuan/*" element={<Navigate to="/draft-pengajuan" replace />} />
+      <Route path="/review/*" element={<Navigate to="/evaluasi" replace />} />
+      <Route path="/persetujuan/*" element={<Navigate to="/draft-pencairan" replace />} />
+      <Route path="/pencairan/*" element={<Navigate to="/draft-pencairan" replace />} />
+      <Route path="/realisasi/*" element={<Navigate to="/draft-pencairan" replace />} />
+      <Route path="/master-unit/*" element={<Navigate to="/pengaturan?tab=unit" replace />} />
+      <Route path="/master-kegiatan/*" element={<Navigate to="/pengaturan?tab=kegiatan" replace />} />
+      <Route path="/tahun-anggaran/*" element={<Navigate to="/pengaturan?tab=tahun" replace />} />
+      <Route path="/backup/*" element={<Navigate to="/pengaturan?tab=backup" replace />} />
 
       {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />

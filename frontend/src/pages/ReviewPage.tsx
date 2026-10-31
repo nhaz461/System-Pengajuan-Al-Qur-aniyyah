@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ClipboardCheck,
   Search,
@@ -584,7 +585,7 @@ const FinishReviewModal: React.FC<FinishModalProps> = ({
             <CheckCircle2 size={22} />
           </div>
           <div>
-            <h3 className="text-base font-bold text-gray-900">Selesaikan Review Keuangan</h3>
+            <h3 className="text-base font-bold text-gray-900">Selesai Evaluasi & Buat Draft Pencairan</h3>
             <p className="text-xs text-gray-500 font-mono">{submissionNumber}</p>
           </div>
         </div>
@@ -599,7 +600,7 @@ const FinishReviewModal: React.FC<FinishModalProps> = ({
                 <span className="font-mono font-semibold">{formatRupiah(totalOriginal)}</span>
               </div>
               <div className="flex justify-between text-primary-900 font-bold text-sm">
-                <span>Total Disetujui Reviewer:</span>
+                <span>Total Disetujui Evaluator:</span>
                 <span className="font-mono">
                   {formatRupiah(totalReviewed)}{' '}
                   <span className="text-xs text-primary-700 font-normal">({pctApproved}%)</span>
@@ -619,13 +620,13 @@ const FinishReviewModal: React.FC<FinishModalProps> = ({
         })()}
 
         <div>
-          <label className="form-label text-xs">Catatan untuk Pimpinan Yayasan</label>
+          <label className="form-label text-xs">Catatan Evaluasi / Rekomendasi Pencairan</label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
             className="form-input text-xs"
-            placeholder="Tuliskan catatan rekomendasi persetujuan..."
+            placeholder="Tuliskan catatan rekomendasi pencairan atau penyesuaian..."
           />
         </div>
 
@@ -637,14 +638,14 @@ const FinishReviewModal: React.FC<FinishModalProps> = ({
             type="button"
             onClick={handleConfirm}
             disabled={isSubmitting}
-            className="btn-primary text-xs flex items-center gap-2"
+            className="btn-primary text-xs flex items-center gap-2 bg-[#14532D] hover:bg-[#166534] font-bold"
           >
             {isSubmitting ? (
               <Loader2 size={14} className="animate-spin" />
             ) : (
-              <Send size={14} />
+              <CheckCircle2 size={14} className="text-emerald-300" />
             )}
-            Teruskan ke Pimpinan Yayasan
+            Selesai Evaluasi & Buat Draft Pencairan
           </button>
         </div>
       </div>
@@ -1031,6 +1032,9 @@ const SshMatcherModal: React.FC<SshMatcherModalProps> = ({
 // ─── Main Review Page Component ────────────────────────────────
 const ReviewPage: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const queryId = searchParams.get('id');
   const [activeSubmissionId, setActiveSubmissionId] = useState<number | null>(null);
 
   // List view states
@@ -1104,7 +1108,10 @@ const ReviewPage: React.FC = () => {
       if (res.data) setUnits(res.data);
     });
     loadSubmissions('SEMUA', 'SEMUA', '');
-  }, []);
+    if (queryId) {
+      handleOpenWorkspace(Number(queryId));
+    }
+  }, [queryId]);
 
   // Open Review Workspace
   const handleOpenWorkspace = async (subId: number) => {
@@ -1207,9 +1214,8 @@ const ReviewPage: React.FC = () => {
       notes,
     });
     if (res.success) {
-      toast.success(res.message || 'Review selesai.');
-      setActiveSubmissionId(null);
-      loadSubmissions(selectedUnitId, selectedStatus, search);
+      toast.success('Evaluasi selesai! Draft Pencairan otomatis dibuat.');
+      navigate(`/draft-pencairan?id=${activeSubmissionId}`);
     }
   };
 
@@ -1291,10 +1297,10 @@ const ReviewPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowFinishModal(true)}
-                className="btn-primary text-xs flex items-center gap-1.5 shadow-sm"
+                className="btn-primary text-xs flex items-center gap-1.5 shadow-sm font-bold bg-[#14532D] hover:bg-[#166534] px-4 py-2"
               >
-                <Send size={14} />
-                Selesai & Teruskan ke Pimpinan
+                <CheckCircle2 size={15} className="text-emerald-300" />
+                SELESAI EVALUASI & BUAT DRAFT PENCAIRAN
               </button>
             )}
           </div>

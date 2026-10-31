@@ -16,6 +16,10 @@ router.post('/preview', upload_middleware_1.uploadExcel.single('file'), submissi
 router.post('/', submissions_controller_1.createSubmission);
 // Detail pengajuan
 router.get('/:id', submissions_controller_1.getSubmissionDetail);
+// Update seluruh pengajuan / revisi dari unit
+router.put('/:id', submissions_controller_1.updateSubmission);
+// Update status workflow pengajuan (Revisi, Evaluasi Selesai, Kirim, Cairkan, Batal)
+router.patch('/:id/workflow-status', submissions_controller_1.updateSubmissionWorkflowStatus);
 // Hapus pengajuan
 router.delete('/:id', submissions_controller_1.deleteSubmission);
 exports.default = router;

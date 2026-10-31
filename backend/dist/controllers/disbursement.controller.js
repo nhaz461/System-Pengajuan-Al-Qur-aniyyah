@@ -17,9 +17,9 @@ exports.getDisbursementSubmissions = (0, error_middleware_1.asyncHandler)(async 
         whereClause.status = String(status);
     }
     else if (!status) {
-        // Default: siap dicairkan atau yang sudah dicairkan
+        // Default: seluruh draft pencairan (siap dicairkan, sudah dikirim, maupun yang sudah dicairkan)
         whereClause.status = {
-            in: ['DISETUJUI', 'DICAIRKAN', 'MENUNGGU_PENCAIRAN'],
+            in: ['SELESAI_EVALUASI', 'SIAP_DICAIRKAN', 'SUDAH_DIKIRIM', 'SUDAH_DICAIRKAN', 'DISETUJUI', 'DICAIRKAN', 'MENUNGGU_PENCAIRAN'],
         };
     }
     if (unitId) {

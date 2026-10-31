@@ -36,16 +36,12 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { label: 'Pengajuan Anggaran', path: '/pengajuan', icon: FileText },
-  { label: 'Review Anggaran & SSH', path: '/review', icon: Search },
-  { label: 'Persetujuan (Approval)', path: '/persetujuan', icon: CheckSquare },
-  { label: 'Pencairan Dana (SPPD)', path: '/pencairan', icon: Banknote },
-  { label: 'Realisasi & LPJ', path: '/realisasi', icon: ClipboardList },
-  { label: 'Master SSH 2026', path: '/master-ssh', icon: BookOpen },
-  { label: 'Master Unit Sekolah', path: '/master-unit', icon: Building2 },
-  { label: 'Master Pos Kegiatan', path: '/master-kegiatan', icon: Calendar },
-  { label: 'Tahun Anggaran', path: '/tahun-anggaran', icon: CalendarDays },
-  { label: 'Backup & Arsip Excel', path: '/backup', icon: HardDrive },
+  { label: 'Pengajuan Unit', path: '/pengajuan-unit', icon: FileText },
+  { label: 'Draft Pengajuan', path: '/draft-pengajuan', icon: ClipboardList },
+  { label: 'Evaluasi Keuangan', path: '/evaluasi', icon: Search },
+  { label: 'Draft Pencairan', path: '/draft-pencairan', icon: Banknote },
+  { label: 'Master SSH', path: '/master-ssh', icon: BookOpen },
+  { label: 'Pengaturan', path: '/pengaturan', icon: Settings },
 ];
 
 const getRoleBadgeColor = (role: string) => {

@@ -75,4 +75,26 @@ export const submissionsService = {
     const { data } = await api.delete<ApiResponse<any>>(`/submissions/${id}`);
     return data;
   },
+
+  updateWorkflowStatus: async (
+    id: number,
+    payload: {
+      status?: string;
+      notes?: string;
+      disbursementAmount?: number;
+      disbursementDate?: string;
+      paymentMethod?: string;
+      bankName?: string;
+      accountNumber?: string;
+      recipientName?: string;
+    }
+  ) => {
+    const { data } = await api.patch<ApiResponse<any>>(`/submissions/${id}/workflow-status`, payload);
+    return data;
+  },
+
+  update: async (id: number, payload: any) => {
+    const { data } = await api.put<ApiResponse<any>>(`/submissions/${id}`, payload);
+    return data;
+  },
 };

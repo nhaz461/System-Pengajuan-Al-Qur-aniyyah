@@ -410,19 +410,22 @@ export const finishReview = asyncHandler(async (req: AuthRequest, res: Response)
 
   if (!sub) throw createError('Pengajuan tidak ditemukan.', 404);
 
-  if (action === 'APPROVE_TO_LEADERSHIP') {
+  if (action === 'APPROVE_TO_LEADERSHIP' || action === 'FINISH_AND_CREATE_DRAFT' || action === 'SELESAI_EVALUASI') {
     // Pastikan totalReviewed sudah terhitung
     const totalReviewed = sub.items.reduce((acc, it) => {
       const p = it.reviewPrice !== null ? it.reviewPrice : it.originalPrice;
       return acc + it.volume * p;
     }, 0);
 
-    // Status berubah menjadi MENUNGGU_APPROVAL (siap untuk Phase 5)
+    // Status berubah menjadi SELESAI_EVALUASI (Otomatis menghasilkan Draft Pencairan)
     await prisma.submission.update({
       where: { id: submissionId },
       data: {
-        status: 'MENUNGGU_APPROVAL',
+        status: 'SELESAI_EVALUASI',
         totalReviewed,
+        totalApproved: totalReviewed,
+        approvedAt: new Date(),
+        approvedById: req.user?.id,
       },
     });
 
@@ -430,25 +433,25 @@ export const finishReview = asyncHandler(async (req: AuthRequest, res: Response)
       data: {
         submissionId,
         reviewerId: req.user!.id,
-        action: 'APPROVE_TO_LEADERSHIP',
-        notes: notes?.trim() || 'Review keuangan selesai dan diteruskan untuk persetujuan pimpinan.',
+        action: 'SELESAI_EVALUASI',
+        notes: notes?.trim() || 'Evaluasi keuangan selesai oleh Bendahara Umum. Draft pencairan / SPPD diterbitkan.',
       },
     });
 
     await prisma.auditLog.create({
       data: {
         userId: req.user?.id,
-        action: 'FINISH_REVIEW',
+        action: 'FINISH_EVALUATION',
         entity: 'Submission',
         entityId: submissionId,
-        note: `Review keuangan selesai untuk ${sub.submissionNumber}. Total disetujui reviewer: Rp${totalReviewed.toLocaleString('id-ID')}`,
+        note: `Evaluasi keuangan selesai untuk ${sub.submissionNumber}. Total disetujui: Rp${totalReviewed.toLocaleString('id-ID')}. Draft pencairan siap diproses.`,
       },
     });
 
     res.json({
       success: true,
-      message: 'Review keuangan selesai. Pengajuan diteruskan ke pimpinan untuk persetujuan.',
-      data: { status: 'MENUNGGU_APPROVAL', totalReviewed },
+      message: 'Evaluasi keuangan selesai. Draft Pencairan (SPPD) berhasil dibuat.',
+      data: { status: 'SELESAI_EVALUASI', totalReviewed, totalApproved: totalReviewed },
     });
   } else if (action === 'REQUEST_REVISION') {
     if (!notes || !notes.trim()) {

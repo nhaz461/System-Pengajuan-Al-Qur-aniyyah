@@ -161,60 +161,44 @@ const DashboardPage: React.FC = () => {
             />
           </div>
 
-          {/* Workflow Status Funnel */}
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+          {/* Workflow Status Funnel Sistem Baru */}
+          <div className="bg-white rounded-2xl shadow-xs border border-slate-200 p-5">
             <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-              <ClipboardList className="w-4 h-4 text-[#1B4332]" />
-              Alur Status Pengajuan Berjalan
+              <ClipboardList className="w-4 h-4 text-[#14532D]" />
+              Status Alur Pengajuan Anggaran
             </h3>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
-                <p className="text-xs text-slate-500 font-medium">Review SSH</p>
-                <p className="text-lg font-extrabold text-slate-800 mt-1">
-                  {(summary.statusBreakdown?.menungguReview || 0) + (summary.statusBreakdown?.dalamReview || 0)}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-center">
+                <p className="text-xs text-slate-500 font-semibold">1. Draft & Menunggu</p>
+                <p className="text-xl font-black text-slate-800 mt-1">
+                  {(summary.statusBreakdown?.menungguReview || 0) + (summary.statusBreakdown?.draft || 0)}
                 </p>
-                <span className="text-[10px] text-slate-400">Bagian Keuangan</span>
+                <span className="text-[10px] text-slate-400">Usulan Masuk</span>
               </div>
 
-              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-center">
-                <p className="text-xs text-amber-800 font-medium">Approval</p>
-                <p className="text-lg font-extrabold text-amber-900 mt-1">
-                  {summary.statusBreakdown?.menungguApproval || 0}
+              <div className="p-3.5 rounded-xl bg-purple-50 border border-purple-200 text-center">
+                <p className="text-xs text-purple-800 font-semibold">2. Sedang Dievaluasi</p>
+                <p className="text-xl font-black text-purple-900 mt-1">
+                  {summary.statusBreakdown?.dalamReview || 0}
                 </p>
-                <span className="text-[10px] text-amber-700">Pimpinan Yayasan</span>
+                <span className="text-[10px] text-purple-700">Bendahara Umum</span>
               </div>
 
-              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-center">
-                <p className="text-xs text-emerald-800 font-medium">Siap Cair</p>
-                <p className="text-lg font-extrabold text-emerald-900 mt-1">
-                  {summary.statusBreakdown?.disetujui || 0}
+              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-center">
+                <p className="text-xs text-amber-800 font-semibold">3. Draft Pencairan (SPPD)</p>
+                <p className="text-xl font-black text-amber-900 mt-1">
+                  {(summary.statusBreakdown?.menungguApproval || 0) + (summary.statusBreakdown?.disetujui || 0)}
                 </p>
-                <span className="text-[10px] text-emerald-700">Kasir / Bendahara</span>
+                <span className="text-[10px] text-amber-700">Siap Dicairkan</span>
               </div>
 
-              <div className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-center">
-                <p className="text-xs text-blue-800 font-medium">Telah Dicairkan</p>
-                <p className="text-lg font-extrabold text-blue-900 mt-1">
-                  {summary.statusBreakdown?.dicairkan || 0}
+              <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-center">
+                <p className="text-xs text-emerald-800 font-semibold">4. Selesai Dicairkan</p>
+                <p className="text-xl font-black text-[#14532D] mt-1">
+                  {(summary.statusBreakdown?.dicairkan || 0) + (summary.statusBreakdown?.selesai || 0)}
                 </p>
-                <span className="text-[10px] text-blue-700">Pelaksanaan Unit</span>
-              </div>
-
-              <div className="p-3 rounded-lg bg-purple-50 border border-purple-200 text-center">
-                <p className="text-xs text-purple-800 font-medium">Verifikasi LPJ</p>
-                <p className="text-lg font-extrabold text-purple-900 mt-1">
-                  {summary.statusBreakdown?.menungguLpj || 0}
-                </p>
-                <span className="text-[10px] text-purple-700">Pemeriksaan Nota</span>
-              </div>
-
-              <div className="p-3 rounded-lg bg-teal-50 border border-teal-200 text-center">
-                <p className="text-xs text-teal-800 font-medium">Selesai</p>
-                <p className="text-lg font-extrabold text-teal-900 mt-1">
-                  {summary.statusBreakdown?.selesai || 0}
-                </p>
-                <span className="text-[10px] text-teal-700">Siklus Tuntas</span>
+                <span className="text-[10px] text-emerald-700">Kasir / Pengeluaran</span>
               </div>
             </div>
           </div>
@@ -279,62 +263,62 @@ const DashboardPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Action Navigation Cards */}
+          {/* Quick Action Navigation Cards Sistem Baru */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Link
-              to="/pengajuan"
-              className="p-4 rounded-xl border border-slate-200 bg-white hover:border-[#1B4332] hover:shadow-md transition-all group"
+              to="/pengajuan-unit"
+              className="p-4 rounded-xl border border-slate-200 bg-white hover:border-emerald-700 hover:shadow-md transition-all group"
             >
               <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-lg bg-emerald-50 text-[#1B4332] flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-emerald-50 text-[#14532D] flex items-center justify-center">
                   <FileText className="w-5 h-5" />
                 </div>
-                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-[#1B4332] group-hover:translate-x-1 transition-all" />
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-[#14532D] group-hover:translate-x-1 transition-all" />
               </div>
               <h4 className="font-bold text-slate-900 text-sm mt-3">Pengajuan Unit</h4>
-              <p className="text-xs text-slate-500 mt-1">Unggah berkas Excel pengajuan belanja unit.</p>
+              <p className="text-xs text-slate-500 mt-1">Buat usulan anggaran baru fleksibel 1-3 faktor volume.</p>
             </Link>
 
             <Link
-              to="/review"
-              className="p-4 rounded-xl border border-slate-200 bg-white hover:border-[#1B4332] hover:shadow-md transition-all group"
-            >
-              <div className="flex items-center justify-between">
-                <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
-                  <BookOpen className="w-5 h-5" />
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-amber-700 group-hover:translate-x-1 transition-all" />
-              </div>
-              <h4 className="font-bold text-slate-900 text-sm mt-3">Review & Matching SSH</h4>
-              <p className="text-xs text-slate-500 mt-1">Pencocokan harga dengan standar SSH 2026.</p>
-            </Link>
-
-            <Link
-              to="/persetujuan"
-              className="p-4 rounded-xl border border-slate-200 bg-white hover:border-[#1B4332] hover:shadow-md transition-all group"
+              to="/draft-pengajuan"
+              className="p-4 rounded-xl border border-slate-200 bg-white hover:border-emerald-700 hover:shadow-md transition-all group"
             >
               <div className="flex items-center justify-between">
                 <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-700 flex items-center justify-center">
-                  <ShieldCheck className="w-5 h-5" />
+                  <ClipboardList className="w-5 h-5" />
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-blue-700 group-hover:translate-x-1 transition-all" />
               </div>
-              <h4 className="font-bold text-slate-900 text-sm mt-3">Persetujuan Pimpinan</h4>
-              <p className="text-xs text-slate-500 mt-1">Disposisi pengesahan anggaran oleh Pimpinan.</p>
+              <h4 className="font-bold text-slate-900 text-sm mt-3">Draft Pengajuan</h4>
+              <p className="text-xs text-slate-500 mt-1">Antrean pengajuan masuk unit sebelum dievaluasi.</p>
             </Link>
 
             <Link
-              to="/pencairan"
-              className="p-4 rounded-xl border border-slate-200 bg-white hover:border-[#1B4332] hover:shadow-md transition-all group"
+              to="/evaluasi"
+              className="p-4 rounded-xl border border-slate-200 bg-white hover:border-emerald-700 hover:shadow-md transition-all group"
             >
               <div className="flex items-center justify-between">
                 <div className="w-10 h-10 rounded-lg bg-purple-50 text-purple-700 flex items-center justify-center">
-                  <Banknote className="w-5 h-5" />
+                  <BookOpen className="w-5 h-5" />
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-purple-700 group-hover:translate-x-1 transition-all" />
               </div>
-              <h4 className="font-bold text-slate-900 text-sm mt-3">Pencairan & Kuitansi</h4>
-              <p className="text-xs text-slate-500 mt-1">Pembayaran dana dan cetak tanda terima kas.</p>
+              <h4 className="font-bold text-slate-900 text-sm mt-3">Evaluasi Keuangan</h4>
+              <p className="text-xs text-slate-500 mt-1">Koreksi rincian anggaran & validasi standar SSH 2026.</p>
+            </Link>
+
+            <Link
+              to="/draft-pencairan"
+              className="p-4 rounded-xl border border-slate-200 bg-white hover:border-emerald-700 hover:shadow-md transition-all group"
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
+                  <Banknote className="w-5 h-5" />
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-amber-700 group-hover:translate-x-1 transition-all" />
+              </div>
+              <h4 className="font-bold text-slate-900 text-sm mt-3">Draft Pencairan (SPPD)</h4>
+              <p className="text-xs text-slate-500 mt-1">Dokumen resmi SPPD & konfirmasi pencairan kas.</p>
             </Link>
           </div>
         </>

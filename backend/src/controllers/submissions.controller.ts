@@ -486,3 +486,151 @@ export const deleteSubmission = asyncHandler(async (req: AuthRequest, res: Respo
     message: `Pengajuan ${sub.submissionNumber} ("${sub.title}") berhasil dihapus.`,
   });
 });
+
+// PATCH /api/submissions/:id/workflow-status
+export const updateSubmissionWorkflowStatus = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.id);
+  const { status, notes, disbursementAmount, disbursementDate, paymentMethod, bankName, accountNumber, recipientName } = req.body;
+
+  const sub = await prisma.submission.findUnique({
+    where: { id },
+    include: { unit: true },
+  });
+
+  if (!sub) throw createError('Pengajuan tidak ditemukan.', 404);
+
+  const validStatuses = [
+    'DRAFT_UNIT',
+    'MENUNGGU_EVALUASI',
+    'SEDANG_DIEVALUASI',
+    'PERLU_REVISI',
+    'SELESAI_EVALUASI',
+    'SIAP_DICAIRKAN',
+    'SUDAH_DIKIRIM',
+    'SUDAH_DICAIRKAN',
+    'DIBATALKAN',
+    'DISETUJUI',
+    'DICAIRKAN',
+  ];
+
+  if (status && !validStatuses.includes(status)) {
+    throw createError(`Status "${status}" tidak valid.`, 400);
+  }
+
+  const updateData: any = {};
+  if (status) updateData.status = status;
+  if (notes !== undefined) updateData.notes = notes;
+
+  if (status === 'SELESAI_EVALUASI' || status === 'SIAP_DICAIRKAN') {
+    if (!sub.totalApproved) {
+      updateData.totalApproved = sub.totalReviewed || sub.totalParsing;
+    }
+  }
+
+  if (status === 'SUDAH_DICAIRKAN' || status === 'DICAIRKAN') {
+    const amount = Number(disbursementAmount) || sub.totalApproved || sub.totalReviewed || sub.totalParsing;
+    const disburseDate = disbursementDate ? new Date(disbursementDate) : new Date();
+
+    updateData.totalDisbursed = (sub.totalDisbursed || 0) + amount;
+    updateData.totalRealized = (sub.totalRealized || 0) + amount;
+    updateData.disbursedAt = disburseDate;
+    updateData.disbursedById = req.user?.id;
+
+    // Catat record disbursement jika belum ada
+    await prisma.disbursement.create({
+      data: {
+        submissionId: id,
+        amount,
+        paymentMethod: paymentMethod || 'TRANSFER',
+        bankName: bankName || 'BSI (Bank Syariah Indonesia)',
+        accountNumber: accountNumber || null,
+        recipientName: recipientName || sub.picName || sub.unit.name,
+        notes: notes || 'Pencairan dikonfirmasi oleh Bendahara Pengeluaran',
+        disbursedById: req.user?.id || sub.submittedById,
+        disbursedAt: disburseDate,
+      },
+    });
+  }
+
+  const updatedSub = await prisma.submission.update({
+    where: { id },
+    data: updateData,
+  });
+
+  // Audit Log
+  await prisma.auditLog.create({
+    data: {
+      userId: req.user?.id,
+      action: 'UPDATE_STATUS',
+      entity: 'Submission',
+      entityId: id,
+      oldValue: sub.status,
+      newValue: status || sub.status,
+      note: `Status pengajuan ${sub.submissionNumber} diubah menjadi ${status || sub.status}.${notes ? ` Catatan: ${notes}` : ''}`,
+    },
+  });
+
+  res.json({
+    success: true,
+    message: `Status pengajuan berhasil diperbarui menjadi ${status || sub.status}.`,
+    data: updatedSub,
+  });
+});
+
+// PUT /api/submissions/:id (Edit/Revisi Pengajuan Unit & Items)
+export const updateSubmission = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const id = parseInt(req.params.id);
+  const { title, activityDate, picName, notes, items, status } = req.body;
+
+  const sub = await prisma.submission.findUnique({
+    where: { id },
+    include: { unit: true },
+  });
+
+  if (!sub) throw createError('Pengajuan tidak ditemukan.', 404);
+
+  // Jika ada items baru, hitung total baru
+  let totalParsing = sub.totalParsing;
+  if (items && Array.isArray(items) && items.length > 0) {
+    totalParsing = items.reduce((acc: number, it: any) => acc + (Number(it.jumlah) || (Number(it.hargaSatuan) * Number(it.volume))), 0);
+  }
+
+  const updatedSub = await prisma.submission.update({
+    where: { id },
+    data: {
+      title: title ? title.trim() : sub.title,
+      activityDate: activityDate ? new Date(activityDate) : sub.activityDate,
+      picName: picName ? picName.trim() : sub.picName,
+      notes: notes !== undefined ? notes : sub.notes,
+      totalParsing,
+      totalExcel: totalParsing,
+      status: status || 'MENUNGGU_EVALUASI',
+    },
+  });
+
+  // Jika items disertakan, perbarui item belanja
+  if (items && Array.isArray(items) && items.length > 0) {
+    await prisma.submissionItem.deleteMany({ where: { submissionId: id } });
+    const dbItems = items.map((it: any, idx: number) => ({
+      submissionId: id,
+      itemNumber: it.no || idx + 1,
+      kategori: it.kategori?.trim() || 'Umum',
+      uraian: it.uraian?.trim() || 'Belanja',
+      hargaSatuan: Number(it.hargaSatuan) || 0,
+      volume: Number(it.volume) || 1,
+      satuan: it.satuan?.trim() || 'Item',
+      jumlah: Number(it.jumlah) || 0,
+      keterangan: it.keterangan?.trim() || null,
+      originalPrice: Number(it.hargaSatuan) || 0,
+      reviewPrice: Number(it.hargaSatuan) || 0,
+      sshStatus: 'BELUM_REVIEW',
+    }));
+    await prisma.submissionItem.createMany({ data: dbItems });
+  }
+
+  res.json({
+    success: true,
+    message: 'Pengajuan berhasil diperbarui.',
+    data: updatedSub,
+  });
+});
